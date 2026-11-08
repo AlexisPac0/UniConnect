@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-
-import 'core/theme/app_theme.dart';
-import 'features/home/presentation/home_page.dart';
+import 'package:uniconnect/core/session/user_role.dart';
+import 'package:uniconnect/core/theme/app_theme.dart';
+import 'package:uniconnect/features/home/presentation/pages/home_page.dart';
 
 class UniConnectApp extends StatelessWidget {
   const UniConnectApp({super.key});
@@ -11,7 +11,7 @@ class UniConnectApp extends StatelessWidget {
     return MaterialApp(
       title: 'UniConnect',
       theme: AppTheme.light,
-      home: const HomePage(),
+      home: const HomePage(role: UserRole.student),
     );
   }
 }

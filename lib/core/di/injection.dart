@@ -1,4 +1,9 @@
 import 'package:get_it/get_it.dart';
+import 'package:uniconnect/features/home/data/datasources/home_data_source.dart';
+import 'package:uniconnect/features/home/data/repositories/home_repository_impl.dart';
+import 'package:uniconnect/features/home/domain/repositories/home_repository.dart';
+import 'package:uniconnect/features/home/domain/usecases/get_welcome_items.dart';
+import 'package:uniconnect/features/home/presentation/cubit/home_cubit.dart';
 
 /// Global service locator.
 ///
@@ -10,5 +15,16 @@ final GetIt getIt = GetIt.instance;
 
 /// Registers all dependencies. Must be called once before `runApp`.
 void configureDependencies() {
-  // Features register their dependencies below, one function per feature.
+  _registerHomeFeature();
+}
+
+/// Lifetimes:
+/// - data sources, repositories and use cases are stateless: lazy singletons;
+/// - cubits hold screen state: factories (a new instance per screen).
+void _registerHomeFeature() {
+  getIt
+    ..registerLazySingleton<HomeDataSource>(InMemoryHomeDataSource.new)
+    ..registerLazySingleton<HomeRepository>(() => HomeRepositoryImpl(getIt()))
+    ..registerLazySingleton(() => GetWelcomeItems(getIt()))
+    ..registerFactory(() => HomeCubit(getIt()));
 }
