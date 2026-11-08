@@ -1,0 +1,61 @@
+@startuml
+left to right direction
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor #F7F9FC
+  BorderColor #3B5B92
+}
+skinparam ArrowColor #3B5B92
+skinparam packageBorderColor #8A97B0
+title UniConnect - Use case diagram (Timetable and Attendance modules)
+
+actor "Student" as S
+actor "Professor" as P
+actor "Administrator" as A
+
+rectangle "UniConnect app" {
+
+  package "Timetable module" {
+    usecase "UC1  Manage courses\n(create, edit, delete)" as UC1
+    usecase "UC2  Assign professors and\nenrol students in a course" as UC2
+    usecase "UC3  Schedule a lecture" as UC3
+    usecase "UC4  Move or cancel a lecture" as UC4
+    usecase "UC5  View daily / weekly timetable" as UC5
+    usecase "UC6  Receive push notification\non lecture change" as UC6
+    usecase "UC7  View timetable offline" as UC7
+  }
+
+  package "Attendance module" {
+    usecase "UC8  Open / close attendance session" as UC8
+    usecase "UC9  Display rotating QR code" as UC9
+    usecase "UC10  Check in by scanning QR code" as UC10
+    usecase "UC11  Verify location of check-in" as UC11
+    usecase "UC12  See who is present and\ncorrect an entry" as UC12
+    usecase "UC13  View attendance statistics\n(dashboard)" as UC13
+    usecase "UC14  View own attendance record" as UC14
+  }
+}
+
+A --> UC1
+A --> UC2
+
+P --> UC3
+P --> UC4
+P --> UC8
+P --> UC12
+P --> UC13
+
+S --> UC5
+S --> UC6
+S --> UC7
+S --> UC10
+S --> UC14
+
+UC4 ..> UC6 : <<include>>
+UC7 ..> UC5 : <<extend>>
+UC8 ..> UC9 : <<include>>
+UC10 ..> UC11 : <<include>>
+
+@enduml
