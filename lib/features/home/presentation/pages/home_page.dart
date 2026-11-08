@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:uniconnect/core/di/injection.dart';
+import 'package:uniconnect/core/router/app_routes.dart';
 import 'package:uniconnect/core/session/user_role.dart';
+import 'package:uniconnect/features/home/domain/entities/welcome_item.dart';
 import 'package:uniconnect/features/home/presentation/cubit/home_cubit.dart';
 import 'package:uniconnect/features/home/presentation/widgets/welcome_item_card.dart';
 
@@ -30,7 +33,16 @@ class HomeView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('UniConnect')),
+      appBar: AppBar(
+        title: const Text('UniConnect'),
+        actions: [
+          IconButton(
+            tooltip: 'Settings',
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => context.push(AppRoutes.settings),
+          ),
+        ],
+      ),
       body: BlocBuilder<HomeCubit, HomeState>(
         builder: (context, state) {
           return switch (state) {
@@ -52,7 +64,11 @@ class HomeView extends StatelessWidget {
                   style: Theme.of(context).textTheme.bodyLarge,
                 ),
                 const SizedBox(height: 24),
-                for (final item in items) WelcomeItemCard(item: item),
+                for (final item in items)
+                  WelcomeItemCard(
+                    item: item,
+                    onTap: () => context.push(_routeFor(item.action)),
+                  ),
               ],
             ),
           };
@@ -60,6 +76,17 @@ class HomeView extends StatelessWidget {
       ),
     );
   }
+}
+
+String _routeFor(WelcomeAction action) {
+  return switch (action) {
+    WelcomeAction.timetable => AppRoutes.timetable,
+    WelcomeAction.scanAttendance => AppRoutes.qrScan,
+    WelcomeAction.myAttendance => AppRoutes.myAttendance,
+    WelcomeAction.startAttendanceSession => AppRoutes.attendanceSession,
+    WelcomeAction.attendanceDashboard => AppRoutes.attendanceDashboard,
+    WelcomeAction.manageCourses => AppRoutes.courses,
+  };
 }
 
 class _ErrorView extends StatelessWidget {

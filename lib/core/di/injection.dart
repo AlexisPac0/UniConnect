@@ -1,4 +1,7 @@
 import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
+import 'package:uniconnect/core/router/app_router.dart';
+import 'package:uniconnect/core/session/current_session.dart';
 import 'package:uniconnect/features/home/data/datasources/home_data_source.dart';
 import 'package:uniconnect/features/home/data/repositories/home_repository_impl.dart';
 import 'package:uniconnect/features/home/domain/repositories/home_repository.dart';
@@ -15,7 +18,15 @@ final GetIt getIt = GetIt.instance;
 
 /// Registers all dependencies. Must be called once before `runApp`.
 void configureDependencies() {
+  _registerCore();
   _registerHomeFeature();
+}
+
+void _registerCore() {
+  getIt
+    // TODO(SCRUM-25, SCRUM-28): replace with the authentication feature.
+    ..registerLazySingleton(CurrentSession.new)
+    ..registerLazySingleton<GoRouter>(() => createAppRouter(getIt()));
 }
 
 /// Lifetimes:
