@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-
-import 'app.dart';
+import 'package:go_router/go_router.dart';
+import 'package:uniconnect/app.dart';
+import 'package:uniconnect/core/di/injection.dart';
 
 void main() {
-  runApp(const UniConnectApp());
+  configureDependencies();
+  runApp(UniConnectApp(router: getIt<GoRouter>()));
 }
