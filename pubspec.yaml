@@ -10,13 +10,19 @@ environment:
   sdk: ^3.9.2
 
 dependencies:
+  equatable: ^3.0.0
   flutter:
     sdk: flutter
+  flutter_bloc: ^9.1.1
+  get_it: ^9.3.0
+  go_router: ^17.2.3
 
 dev_dependencies:
+  bloc_test: ^10.0.0
   flutter_lints: ^5.0.0
   flutter_test:
     sdk: flutter
+  mocktail: ^1.0.5
 
 flutter:
   uses-material-design: true
