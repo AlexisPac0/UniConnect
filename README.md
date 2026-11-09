@@ -23,7 +23,7 @@ data sources until then.
 | Dependency injection | [`get_it`](https://pub.dev/packages/get_it) |
 | Value equality | [`equatable`](https://pub.dev/packages/equatable) |
 | Tests | `flutter_test`, [`mocktail`](https://pub.dev/packages/mocktail), [`bloc_test`](https://pub.dev/packages/bloc_test) |
-| Backend (planned) | Firebase |
+| Backend | Firebase via FlutterFire: Authentication, Cloud Firestore, Cloud Functions, Cloud Messaging |
 
 ## Architecture
 
@@ -142,6 +142,37 @@ flutter run         # Run on a connected device or emulator
 
 Before opening a pull request, run `flutter analyze` and `flutter test`;
 both must be clean. Use `dart format .` to format the code.
+
+### Firebase setup
+
+The app calls `Firebase.initializeApp()` on startup and reads its
+configuration from a platform file that is **not committed** (it is listed in
+`.gitignore`). Every developer must add it locally once, otherwise the Android
+build fails with `File google-services.json is missing`.
+
+1. Ask the team lead to add your Google account to the Firebase project
+   (Firebase console > Project settings > Users and permissions).
+2. Get the config file, using **one** of these options:
+   - **Console**: Project settings > General > Your apps > Android app
+     `hr.foi.uniconnect` > download `google-services.json` and save it as
+     `android/app/google-services.json`.
+   - **FlutterFire CLI**:
+     ```bash
+     npm install -g firebase-tools
+     dart pub global activate flutterfire_cli
+     firebase login
+     flutterfire configure --platforms=android
+     ```
+     Pick the UniConnect project. The CLI writes
+     `android/app/google-services.json` and `lib/firebase_options.dart` (both
+     ignored by git). Do not commit any changes it makes to the Gradle files.
+3. Run `flutter run`. The app starts without a Firebase error.
+
+Never commit `google-services.json`, `GoogleService-Info.plist`,
+`firebase_options.dart`, service account keys (`*-firebase-adminsdk-*.json`)
+or `.env` files. If one was committed by mistake, tell the team so the keys
+can be rotated: deleting the file in a later commit does not remove it from
+the git history.
 
 ## Conventions
 

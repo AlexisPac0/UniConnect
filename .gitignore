@@ -43,3 +43,17 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase configuration (SCRUM-13)
+# Generated per developer with `flutterfire configure` or downloaded from the
+# Firebase console. Never commit these files: see "Firebase setup" in README.
+/android/app/google-services.json
+/ios/Runner/GoogleService-Info.plist
+/ios/firebase_app_id_file.json
+/lib/firebase_options.dart
+.firebase/
+*-firebase-adminsdk-*.json
+service-account*.json
+.env
+.env.*
+latest
