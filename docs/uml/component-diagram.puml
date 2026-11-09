@@ -1,0 +1,112 @@
+@startuml
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam componentStyle uml2
+
+skinparam defaultFontName "Helvetica, Arial, sans-serif"
+skinparam defaultFontSize 12
+
+skinparam package {
+  BackgroundColor #F7F9FC
+  BorderColor #8A97B0
+  FontColor #1A365D
+  FontStyle bold
+}
+
+skinparam component {
+  BackgroundColor #FFFFFF
+  BorderColor #3B5B92
+  FontColor #2D3748
+}
+
+skinparam database {
+  BackgroundColor #FFF5F5
+  BorderColor #C53030
+  FontColor #742A2A
+}
+
+skinparam cloud {
+  BackgroundColor #FFF5F5
+  BorderColor #C53030
+  FontColor #742A2A
+}
+
+skinparam ArrowColor #3B5B92
+
+title UniConnect - Component Architecture Diagram (Flutter App & Firebase Backend)
+
+package "Device Hardware & Sensors" {
+  component [Camera (QR Scanner)] as CAM
+  component [Location Sensor (GPS)] as GPS
+}
+
+package "Flutter Mobile Application (Client)" {
+  
+  package "Core Infrastructure" {
+    component [AppRouter\n(go_router + guards)] as ROUTER
+    component [Service Locator\n(get_it)] as DI
+    component [Session & Role Manager] as SESSION
+    component [Result & Error System\n(Result<T>, AppFailure)] as RESULT
+    component [App Theme (Material 3)] as THEME
+  }
+
+  package "Feature Modules (Clean Architecture)" {
+    
+    package "Presentation Layer" {
+      component [Auth Pages & Cubits] as UI_AUTH
+      component [Timetable Pages & Cubits] as UI_TT
+      component [Attendance Pages & Cubits] as UI_ATT
+      component [Home & Navigation Hub] as UI_HOME
+    }
+
+    package "Domain Layer (Pure Dart)" {
+      component [Auth UseCases & Entities] as DOM_AUTH
+      component [Timetable UseCases & Entities] as DOM_TT
+      component [Attendance UseCases & Entities] as DOM_ATT
+      interface "Repository Interfaces" as REPO_INT
+    }
+
+    package "Data Layer" {
+      component [Repository Implementations] as REPO_IMPL
+      component [Remote Data Sources\n(Firestore / Functions API)] as DS_REMOTE
+      component [Local Cache Data Sources] as DS_LOCAL
+      component [Hardware Adapters\n(Camera & GPS)] as DS_HARDWARE
+    }
+  }
+}
+
+cloud "Firebase Cloud Ecosystem (Backend)" {
+  component [Firebase Authentication] as FB_AUTH
+  database "Cloud Firestore\n(NoSQL Realtime DB)" as FB_DB
+  component [Firebase Cloud Functions\n(Check-in & Event Triggers)] as FB_FN
+  component [Firebase Cloud Messaging\n(Push Notifications)] as FB_FCM
+}
+
+' Client Internal Flows
+UI_AUTH --> DOM_AUTH
+UI_TT --> DOM_TT
+UI_ATT --> DOM_ATT
+
+DOM_AUTH ..> REPO_INT
+DOM_TT ..> REPO_INT
+DOM_ATT ..> REPO_INT
+
+REPO_IMPL ..|> REPO_INT
+REPO_IMPL --> DS_REMOTE
+REPO_IMPL --> DS_LOCAL
+REPO_IMPL --> DS_HARDWARE
+
+DS_HARDWARE --> CAM
+DS_HARDWARE --> GPS
+
+' Client to Backend Flows
+DS_REMOTE --> FB_AUTH : Authenticate
+DS_REMOTE <--> FB_DB : Realtime Queries & Sync
+DS_REMOTE --> FB_FN : Validate Check-in & Geofence
+
+' Backend Internal Flows
+FB_FN --> FB_DB : Read/Write Attendance & Lectures
+FB_FN --> FB_FCM : Trigger Schedule Alerts
+FB_FCM ..> [Flutter Mobile Application (Client)] : Deliver Push Notification
+
+@enduml
