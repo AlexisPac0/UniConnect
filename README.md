@@ -16,9 +16,20 @@ No Firebase account, credentials or environment file is required to run the
 current app. A temporary session starts as a student; this is not real
 authentication.
 
+| Concern | Choice |
+| --- | --- |
+| UI | Flutter (Material 3) |
+| State management | [`flutter_bloc`](https://pub.dev/packages/flutter_bloc) (Cubit) |
+| Navigation | [`go_router`](https://pub.dev/packages/go_router) |
+| Dependency injection | [`get_it`](https://pub.dev/packages/get_it) |
+| Value equality | [`equatable`](https://pub.dev/packages/equatable) |
+| Tests | `flutter_test`, [`mocktail`](https://pub.dev/packages/mocktail), [`bloc_test`](https://pub.dev/packages/bloc_test) |
+| Backend | Firebase via FlutterFire: Authentication, Cloud Firestore, Cloud Functions, Cloud Messaging |
+
 ## Getting started
 
 ### Prerequisites
+
 
 - Git and the [Flutter SDK](https://docs.flutter.dev/install), available on your
   command line. The project's documented reference is **Flutter 3.35.3 stable**
