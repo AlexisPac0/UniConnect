@@ -2,6 +2,11 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uniconnect/core/router/app_router.dart';
 import 'package:uniconnect/core/session/current_session.dart';
+import 'package:uniconnect/features/courses/data/datasources/course_data_source.dart';
+import 'package:uniconnect/features/courses/data/repositories/course_repository_impl.dart';
+import 'package:uniconnect/features/courses/domain/repositories/course_repository.dart';
+import 'package:uniconnect/features/courses/domain/usecases/create_course.dart';
+import 'package:uniconnect/features/courses/presentation/cubit/course_cubit.dart';
 import 'package:uniconnect/features/home/data/datasources/home_data_source.dart';
 import 'package:uniconnect/features/home/data/repositories/home_repository_impl.dart';
 import 'package:uniconnect/features/home/domain/repositories/home_repository.dart';
@@ -20,6 +25,17 @@ final GetIt getIt = GetIt.instance;
 void configureDependencies() {
   _registerCore();
   _registerHomeFeature();
+  _registerCourseFeature();
+}
+
+void _registerCourseFeature() {
+  getIt
+    ..registerLazySingleton<CourseDataSource>(FakeCourseDataSource.new)
+    ..registerLazySingleton<CourseRepository>(
+      () => CourseRepositoryImpl(getIt()),
+    )
+    ..registerLazySingleton(() => CreateCourse(getIt()))
+    ..registerFactory(() => CourseCubit(getIt()));
 }
 
 void _registerCore() {

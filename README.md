@@ -13,7 +13,7 @@ Other screens are placeholders. Firebase Authentication, Cloud Firestore and
 Cloud Messaging are planned but are **not integrated yet**.
 
 No Firebase account, credentials or environment file is required to run the
-current app. A temporary session starts as a student; this is not real
+current app. A temporary session starts as an administrator; this is not real
 authentication.
 
 | Concern | Choice |
@@ -64,7 +64,7 @@ flutter run
 
 If several devices are available, select one with
 `flutter run -d <device-id>`, using an ID from `flutter devices`.
-The app opens the student home screen with sample data.
+The app opens the administrator home screen with sample data.
 
 ### Checks
 

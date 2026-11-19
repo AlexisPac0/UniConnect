@@ -10,7 +10,7 @@ import 'package:uniconnect/core/session/user_role.dart';
 /// TODO(SCRUM-25, SCRUM-28): replace with the authentication feature (Firebase
 /// Auth + user profile holding the role) and delete this class.
 class CurrentSession extends ChangeNotifier {
-  CurrentSession({UserRole? role = UserRole.student}) : _role = role;
+  CurrentSession({UserRole? role = UserRole.admin}) : _role = role;
 
   UserRole? _role;
 

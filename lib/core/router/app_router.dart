@@ -3,6 +3,7 @@ import 'package:uniconnect/core/router/app_routes.dart';
 import 'package:uniconnect/core/session/current_session.dart';
 import 'package:uniconnect/core/session/user_role.dart';
 import 'package:uniconnect/core/widgets/placeholder_page.dart';
+import 'package:uniconnect/features/courses/presentation/pages/course_page.dart';
 import 'package:uniconnect/features/home/presentation/pages/home_page.dart';
 
 /// Builds the router of the app.
@@ -60,10 +61,7 @@ GoRouter createAppRouter(CurrentSession session) {
         path: AppRoutes.myAttendance,
         builder: (_, _) => const PlaceholderPage(title: 'My attendance'),
       ),
-      GoRoute(
-        path: AppRoutes.courses,
-        builder: (_, _) => const PlaceholderPage(title: 'Courses'),
-      ),
+      GoRoute(path: AppRoutes.courses, builder: (_, _) => const CoursePage()),
       GoRoute(
         path: AppRoutes.courseMembers,
         builder: (_, state) => PlaceholderPage(
@@ -98,6 +96,12 @@ String? redirectForSession(CurrentSession session, String location) {
       location == AppRoutes.login || location == AppRoutes.root;
   final isOtherHome = AppRoutes.homes.contains(location) && location != home;
   if (isEntryPoint || isOtherHome) return home;
-
+  if (location == AppRoutes.courses && role != UserRole.admin) {
+    return home;
+  }
+  if (location.startsWith(AppRoutes.courseMembers.split('/:').first) &&
+      role != UserRole.admin) {
+    return home;
+  }
   return null;
 }

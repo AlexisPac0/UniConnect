@@ -9,6 +9,11 @@ import 'package:uniconnect/core/router/app_routes.dart';
 import 'package:uniconnect/core/session/current_session.dart';
 import 'package:uniconnect/core/session/user_role.dart';
 import 'package:uniconnect/core/widgets/placeholder_page.dart';
+import 'package:uniconnect/features/courses/data/datasources/course_data_source.dart';
+import 'package:uniconnect/features/courses/data/repositories/course_repository_impl.dart';
+import 'package:uniconnect/features/courses/domain/usecases/create_course.dart';
+import 'package:uniconnect/features/courses/presentation/cubit/course_cubit.dart';
+import 'package:uniconnect/features/courses/presentation/pages/course_page.dart';
 import 'package:uniconnect/features/home/presentation/cubit/home_cubit.dart';
 import 'package:uniconnect/features/home/presentation/pages/home_page.dart';
 
@@ -55,8 +60,25 @@ void main() {
       });
     }
 
-    test('the default temporary session is a student', () {
-      expect(CurrentSession().role, UserRole.student);
+    test('the default temporary session is an admin', () {
+      expect(CurrentSession().role, UserRole.admin);
+    });
+
+    test('only admins can open course management', () {
+      for (final role in [UserRole.student, UserRole.professor]) {
+        final session = CurrentSession(role: role);
+        expect(
+          redirectForSession(session, AppRoutes.courses),
+          AppRoutes.homeFor(role),
+        );
+      }
+      expect(
+        redirectForSession(
+          CurrentSession(role: UserRole.admin),
+          AppRoutes.courses,
+        ),
+        isNull,
+      );
     });
   });
 
@@ -70,6 +92,11 @@ void main() {
       when(() => cubit.state).thenReturn(const HomeLoaded([]));
       when(() => cubit.load(any())).thenAnswer((_) async {});
       getIt.registerFactory<HomeCubit>(() => cubit);
+      getIt.registerFactory<CourseCubit>(
+        () => CourseCubit(
+          const CreateCourse(CourseRepositoryImpl(FakeCourseDataSource())),
+        ),
+      );
     });
 
     tearDown(() => getIt.reset());
@@ -108,7 +135,10 @@ void main() {
     });
 
     testWidgets('a student cannot open the admin home', (tester) async {
-      final router = await pumpRouter(tester, CurrentSession());
+      final router = await pumpRouter(
+        tester,
+        CurrentSession(role: UserRole.student),
+      );
 
       router.go(AppRoutes.adminHome);
       await tester.pumpAndSettle();
@@ -137,7 +167,6 @@ void main() {
       AppRoutes.qrScan: 'Scan QR code',
       AppRoutes.attendanceDashboard: 'Attendance dashboard',
       AppRoutes.myAttendance: 'My attendance',
-      AppRoutes.courses: 'Courses',
       AppRoutes.courseMembersPath('MOB-101'): 'Members of MOB-101',
       AppRoutes.settings: 'Settings',
     };
@@ -152,6 +181,17 @@ void main() {
         expect(find.byType(PlaceholderPage), findsOneWidget);
         expect(find.widgetWithText(AppBar, title), findsOneWidget);
       });
+    });
+
+    testWidgets('/courses shows the course creation form', (tester) async {
+      final router = await pumpRouter(tester, CurrentSession());
+
+      router.go(AppRoutes.courses);
+      await tester.pumpAndSettle();
+
+      expect(currentPath(router), AppRoutes.courses);
+      expect(find.byType(CoursePage), findsOneWidget);
+      expect(find.text('Create a course'), findsOneWidget);
     });
 
     testWidgets('unknown routes show "Page not found"', (tester) async {

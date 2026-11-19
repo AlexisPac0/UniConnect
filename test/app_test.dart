@@ -16,11 +16,11 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('starts on the student home by default', (tester) async {
+  testWidgets('starts on the admin home by default', (tester) async {
     await pumpApp(tester);
 
-    expect(find.text('Student space'), findsOneWidget);
-    expect(find.text('Your timetable'), findsOneWidget);
+    expect(find.text('Administrator space'), findsOneWidget);
+    expect(find.text('Courses'), findsOneWidget);
   });
 
   testWidgets('opens the timetable from the home and goes back', (
@@ -28,7 +28,7 @@ void main() {
   ) async {
     await pumpApp(tester);
 
-    await tester.tap(find.text('Your timetable'));
+    await tester.tap(find.text('Timetable'));
     await tester.pumpAndSettle();
 
     expect(find.widgetWithText(AppBar, 'Timetable'), findsOneWidget);
@@ -36,7 +36,17 @@ void main() {
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
 
-    expect(find.text('Student space'), findsOneWidget);
+    expect(find.text('Administrator space'), findsOneWidget);
+  });
+
+  testWidgets('opens course management from the admin home', (tester) async {
+    await pumpApp(tester);
+
+    await tester.tap(find.text('Courses'));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(AppBar, 'Courses'), findsOneWidget);
+    expect(find.text('Create a course'), findsOneWidget);
   });
 
   testWidgets('switching the session role shows the matching home', (
