@@ -8,8 +8,11 @@ working on the project.
 ## Conventions
 
 - **Branches**: one branch per Jira ticket, created from an up-to-date `main`:
-  `feature/SCRUM-xx-short-description` (e.g.
-  `feature/SCRUM-14-architecture-navigation`).
+  `<prefix>/SCRUM-<number>-<short-description>`. Allowed prefixes are
+  `feature`, `feat`, `fix`, `docs`, `refactor`, `test`, and `chore`.
+  Use a lowercase, hyphen-separated English description (e.g.
+  `feature/SCRUM-14-architecture-navigation` or
+  `chore/SCRUM-16-set-up-ci-pipeline`).
 - **Commits**: small and focused, in English, using Conventional Commits with
   the Jira key at the end: `<type>: <description> (SCRUM-xx)` (e.g.
   `docs: improve README and document Git workflow (SCRUM-17)`).
@@ -45,10 +48,13 @@ docs: improve README and document Git workflow (SCRUM-17)
 
 ## Git workflow
 
-The existing ticket branches use `feature/SCRUM-xx-short-description`
-(for example, `feature/SCRUM-14-architecture-navigation` and
-`feature/SCRUM-19-use-case-diagram`). The initial setup also has a legacy
-`chore/initialize-flutter-project` branch.
+Ticket branches use `<prefix>/SCRUM-<number>-<short-description>` with any
+of the allowed prefixes listed above. Choose a prefix that describes the
+work; `feature` and `feat` both denote new functionality. For example,
+`feature/SCRUM-14-architecture-navigation` and
+`chore/SCRUM-16-set-up-ci-pipeline` are valid branch names. The initial setup
+also has a legacy `chore/initialize-flutter-project` branch; new branches
+must include the Jira key.
 
 Start each ticket from an up-to-date main branch with a clean working tree:
 
@@ -58,8 +64,9 @@ git pull --ff-only origin main
 git switch -c feature/SCRUM-17-readme-git-workflow
 ```
 
-Replace the example branch name with your ticket key and a short English
-description. Keep changes focused on the ticket. Format modified Dart code
+Replace the example branch name with your chosen prefix, ticket key, and a
+short, lowercase, hyphen-separated English description. Keep changes focused
+on the ticket. Format modified Dart code
 with `dart format .`, then run:
 
 ```bash
@@ -132,4 +139,5 @@ Example: an `attendance` feature with a "My attendance" screen.
    `MockCubit`, and router tests for new routes.
 8. **Check and open the PR**: `flutter analyze` (0 issues) and `flutter test`
    (all green, including the architecture test), then open a pull request to
-   `main` from `feature/SCRUM-xx-...`.
+   `main` from `<prefix>/SCRUM-<number>-<short-description>` using an allowed
+   prefix.
