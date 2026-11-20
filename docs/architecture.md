@@ -52,6 +52,21 @@ HomePage ──BlocProvider──▶ HomeCubit ──▶ GetWelcomeItems ──�
 router `redirect` sends each role to its own home (`/student`, `/professor`,
 `/admin`) and signed-out users to `/login`.
 
+Access rules live in the `profile` domain: `RoleAccessPolicy` lists the
+`AppFeature`s of each role, and `AppRoutes.featureFor` maps every screen to
+its feature. A signed-in user who opens a screen of another role is sent back
+to their own home.
+
+| Feature | Routes | Student | Professor | Admin |
+| --- | --- | :-: | :-: | :-: |
+| `timetable` | `/timetable/**` | ✓ | ✓ | ✓ |
+| `attendanceCheckIn` | `/attendance/scan` | ✓ | | |
+| `myAttendance` | `/attendance/me` | ✓ | | |
+| `attendanceSession` | `/attendance/session` | | ✓ | |
+| `attendanceDashboard` | `/attendance/dashboard` | | ✓ | ✓ |
+| `courseManagement` | `/courses/**` | | | ✓ |
+| `settings` | `/settings` | ✓ | ✓ | ✓ |
+
 Until authentication exists, the role comes from a temporary
 `CurrentSession` (default role: `student`, registered in get_it). It will be
 replaced by the authentication feature (SCRUM-25 / SCRUM-28).

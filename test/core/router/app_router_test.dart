@@ -11,10 +11,47 @@ import 'package:uniconnect/core/session/user_role.dart';
 import 'package:uniconnect/core/widgets/placeholder_page.dart';
 import 'package:uniconnect/features/home/presentation/cubit/home_cubit.dart';
 import 'package:uniconnect/features/home/presentation/pages/home_page.dart';
+import 'package:uniconnect/features/profile/domain/entities/app_feature.dart';
+import 'package:uniconnect/features/profile/domain/policies/role_access_policy.dart';
 
 class MockHomeCubit extends MockCubit<HomeState> implements HomeCubit {}
 
 void main() {
+  group('AppRoutes.featureFor', () {
+    final features = {
+      AppRoutes.timetable: AppFeature.timetable,
+      AppRoutes.lectureDetailsPath('42'): AppFeature.timetable,
+      AppRoutes.qrScan: AppFeature.attendanceCheckIn,
+      AppRoutes.myAttendance: AppFeature.myAttendance,
+      AppRoutes.attendanceSession: AppFeature.attendanceSession,
+      AppRoutes.attendanceDashboard: AppFeature.attendanceDashboard,
+      AppRoutes.courses: AppFeature.courseManagement,
+      AppRoutes.courseMembersPath('MOB-101'): AppFeature.courseManagement,
+      AppRoutes.settings: AppFeature.settings,
+    };
+    features.forEach((path, feature) {
+      test('$path belongs to ${feature.name}', () {
+        expect(AppRoutes.featureFor(path), feature);
+      });
+    });
+
+    test('every feature is reachable through a route', () {
+      expect(features.values.toSet(), AppFeature.values.toSet());
+    });
+
+    test('login, root, homes and unknown paths are not guarded', () {
+      for (final path in [
+        AppRoutes.login,
+        AppRoutes.root,
+        ...AppRoutes.homes,
+        '/does-not-exist',
+        '/timetables',
+      ]) {
+        expect(AppRoutes.featureFor(path), isNull, reason: path);
+      }
+    });
+  });
+
   group('redirectForSession', () {
     test('signed out: every route goes to login', () {
       final session = CurrentSession(role: null);
@@ -52,8 +89,69 @@ void main() {
           expect(redirectForSession(session, AppRoutes.timetable), isNull);
           expect(redirectForSession(session, AppRoutes.settings), isNull);
         });
+
+        test('only the screens of the role features are open', () {
+          const policy = RoleAccessPolicy();
+          for (final path in [
+            AppRoutes.timetable,
+            AppRoutes.lectureDetailsPath('42'),
+            AppRoutes.qrScan,
+            AppRoutes.myAttendance,
+            AppRoutes.attendanceSession,
+            AppRoutes.attendanceDashboard,
+            AppRoutes.courses,
+            AppRoutes.courseMembersPath('MOB-101'),
+            AppRoutes.settings,
+          ]) {
+            final allowed = policy.canAccess(role, AppRoutes.featureFor(path)!);
+            expect(
+              redirectForSession(session, path),
+              allowed ? isNull : home,
+              reason: path,
+            );
+          }
+        });
       });
     }
+
+    test('a student is sent home from professor and admin screens', () {
+      final session = CurrentSession();
+
+      expect(
+        redirectForSession(session, AppRoutes.attendanceSession),
+        AppRoutes.studentHome,
+      );
+      expect(
+        redirectForSession(session, AppRoutes.courseMembersPath('MOB-101')),
+        AppRoutes.studentHome,
+      );
+    });
+
+    test('a professor cannot manage courses or scan a QR code', () {
+      final session = CurrentSession(role: UserRole.professor);
+
+      expect(
+        redirectForSession(session, AppRoutes.courses),
+        AppRoutes.professorHome,
+      );
+      expect(
+        redirectForSession(session, AppRoutes.qrScan),
+        AppRoutes.professorHome,
+      );
+    });
+
+    test('an admin cannot open an attendance session', () {
+      final session = CurrentSession(role: UserRole.admin);
+
+      expect(
+        redirectForSession(session, AppRoutes.attendanceSession),
+        AppRoutes.adminHome,
+      );
+    });
+
+    test('unknown paths are not redirected', () {
+      expect(redirectForSession(CurrentSession(), '/does-not-exist'), isNull);
+    });
 
     test('the default temporary session is a student', () {
       expect(CurrentSession().role, UserRole.student);
@@ -130,20 +228,28 @@ void main() {
       expect(currentPath(router), AppRoutes.login);
     });
 
+    // Each placeholder is opened with a role allowed to see it.
     final placeholders = {
-      AppRoutes.timetable: 'Timetable',
-      AppRoutes.lectureDetailsPath('42'): 'Lecture 42',
-      AppRoutes.attendanceSession: 'Attendance session',
-      AppRoutes.qrScan: 'Scan QR code',
-      AppRoutes.attendanceDashboard: 'Attendance dashboard',
-      AppRoutes.myAttendance: 'My attendance',
-      AppRoutes.courses: 'Courses',
-      AppRoutes.courseMembersPath('MOB-101'): 'Members of MOB-101',
-      AppRoutes.settings: 'Settings',
+      AppRoutes.timetable: ('Timetable', UserRole.student),
+      AppRoutes.lectureDetailsPath('42'): ('Lecture 42', UserRole.student),
+      AppRoutes.attendanceSession: ('Attendance session', UserRole.professor),
+      AppRoutes.qrScan: ('Scan QR code', UserRole.student),
+      AppRoutes.attendanceDashboard: (
+        'Attendance dashboard',
+        UserRole.professor,
+      ),
+      AppRoutes.myAttendance: ('My attendance', UserRole.student),
+      AppRoutes.courses: ('Courses', UserRole.admin),
+      AppRoutes.courseMembersPath('MOB-101'): (
+        'Members of MOB-101',
+        UserRole.admin,
+      ),
+      AppRoutes.settings: ('Settings', UserRole.student),
     };
-    placeholders.forEach((path, title) {
+    placeholders.forEach((path, entry) {
+      final (title, role) = entry;
       testWidgets('$path shows the "$title" placeholder', (tester) async {
-        final router = await pumpRouter(tester, CurrentSession());
+        final router = await pumpRouter(tester, CurrentSession(role: role));
 
         router.go(path);
         await tester.pumpAndSettle();
@@ -152,6 +258,16 @@ void main() {
         expect(find.byType(PlaceholderPage), findsOneWidget);
         expect(find.widgetWithText(AppBar, title), findsOneWidget);
       });
+    });
+
+    testWidgets('a student cannot open the courses screen', (tester) async {
+      final router = await pumpRouter(tester, CurrentSession());
+
+      router.go(AppRoutes.courses);
+      await tester.pumpAndSettle();
+
+      expect(currentPath(router), AppRoutes.studentHome);
+      expect(find.widgetWithText(AppBar, 'Courses'), findsNothing);
     });
 
     testWidgets('unknown routes show "Page not found"', (tester) async {
