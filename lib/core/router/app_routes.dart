@@ -1,5 +1,5 @@
+import 'package:uniconnect/core/session/app_feature.dart';
 import 'package:uniconnect/core/session/user_role.dart';
-import 'package:uniconnect/features/profile/domain/entities/app_feature.dart';
 
 /// Paths of every main screen. Always navigate with these constants
 /// (`context.push(AppRoutes.timetable)`), never with raw strings.

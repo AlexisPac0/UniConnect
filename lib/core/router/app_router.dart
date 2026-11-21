@@ -1,10 +1,10 @@
 import 'package:go_router/go_router.dart';
 import 'package:uniconnect/core/router/app_routes.dart';
 import 'package:uniconnect/core/session/current_session.dart';
+import 'package:uniconnect/core/session/role_access_policy.dart';
 import 'package:uniconnect/core/session/user_role.dart';
 import 'package:uniconnect/core/widgets/placeholder_page.dart';
 import 'package:uniconnect/features/home/presentation/pages/home_page.dart';
-import 'package:uniconnect/features/profile/domain/policies/role_access_policy.dart';
 
 /// Builds the router of the app.
 ///

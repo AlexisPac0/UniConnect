@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:uniconnect/core/session/app_feature.dart';
+import 'package:uniconnect/core/session/role_access_policy.dart';
 import 'package:uniconnect/core/session/user_role.dart';
-import 'package:uniconnect/features/profile/domain/entities/app_feature.dart';
-import 'package:uniconnect/features/profile/domain/policies/role_access_policy.dart';
 
 void main() {
   const policy = RoleAccessPolicy();
