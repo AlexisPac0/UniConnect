@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uniconnect/core/router/app_router.dart';
@@ -7,6 +8,10 @@ import 'package:uniconnect/features/home/data/repositories/home_repository_impl.
 import 'package:uniconnect/features/home/domain/repositories/home_repository.dart';
 import 'package:uniconnect/features/home/domain/usecases/get_welcome_items.dart';
 import 'package:uniconnect/features/home/presentation/cubit/home_cubit.dart';
+import 'package:uniconnect/features/profile/data/datasources/user_profile_data_source.dart';
+import 'package:uniconnect/features/profile/data/repositories/user_profile_repository_impl.dart';
+import 'package:uniconnect/features/profile/domain/repositories/user_profile_repository.dart';
+import 'package:uniconnect/features/profile/domain/usecases/get_user_profile.dart';
 
 /// Global service locator.
 ///
@@ -20,6 +25,7 @@ final GetIt getIt = GetIt.instance;
 void configureDependencies() {
   _registerCore();
   _registerHomeFeature();
+  _registerProfileFeature();
 }
 
 void _registerCore() {
@@ -38,4 +44,17 @@ void _registerHomeFeature() {
     ..registerLazySingleton<HomeRepository>(() => HomeRepositoryImpl(getIt()))
     ..registerLazySingleton(() => GetWelcomeItems(getIt()))
     ..registerFactory(() => HomeCubit(getIt()));
+}
+
+/// Everything is lazy: `FirebaseFirestore.instance` is only read the first
+/// time the profile is requested, so nothing touches Firebase at startup.
+void _registerProfileFeature() {
+  getIt
+    ..registerLazySingleton<UserProfileDataSource>(
+      () => FirestoreUserProfileDataSource(FirebaseFirestore.instance),
+    )
+    ..registerLazySingleton<UserProfileRepository>(
+      () => UserProfileRepositoryImpl(getIt()),
+    )
+    ..registerLazySingleton(() => GetUserProfile(getIt()));
 }

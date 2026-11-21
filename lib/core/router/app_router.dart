@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 import 'package:uniconnect/core/router/app_routes.dart';
 import 'package:uniconnect/core/session/current_session.dart';
+import 'package:uniconnect/core/session/role_access_policy.dart';
 import 'package:uniconnect/core/session/user_role.dart';
 import 'package:uniconnect/core/widgets/placeholder_page.dart';
 import 'package:uniconnect/features/home/presentation/pages/home_page.dart';
@@ -81,13 +82,18 @@ GoRouter createAppRouter(CurrentSession session) {
 /// Role-based redirect, kept as a pure function so it is easy to unit test.
 ///
 /// - signed out: everything goes to the login screen;
-/// - signed in: login, `/` and the home of another role go to the user's home.
+/// - signed in: login, `/` and the home of another role go to the user's home;
+/// - signed in: a route whose feature is not allowed for the role (see
+///   [RoleAccessPolicy]) goes to the user's home.
 ///
 /// Returns `null` when no redirect is needed.
 ///
-/// TODO(SCRUM-25, SCRUM-28): read the role from the authentication feature and
-/// add per-route permissions (e.g. only professors open attendance sessions).
-String? redirectForSession(CurrentSession session, String location) {
+/// TODO(SCRUM-25, SCRUM-28): read the role from the authentication feature.
+String? redirectForSession(
+  CurrentSession session,
+  String location, {
+  RoleAccessPolicy policy = const RoleAccessPolicy(),
+}) {
   final role = session.role;
   if (role == null) {
     return location == AppRoutes.login ? null : AppRoutes.login;
@@ -98,6 +104,9 @@ String? redirectForSession(CurrentSession session, String location) {
       location == AppRoutes.login || location == AppRoutes.root;
   final isOtherHome = AppRoutes.homes.contains(location) && location != home;
   if (isEntryPoint || isOtherHome) return home;
+
+  final feature = AppRoutes.featureFor(location);
+  if (feature != null && !policy.canAccess(role, feature)) return home;
 
   return null;
 }

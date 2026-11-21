@@ -52,6 +52,21 @@ HomePage ──BlocProvider──▶ HomeCubit ──▶ GetWelcomeItems ──�
 router `redirect` sends each role to its own home (`/student`, `/professor`,
 `/admin`) and signed-out users to `/login`.
 
+Access rules live in `core/session`: `RoleAccessPolicy` lists the
+`AppFeature`s of each role, and `AppRoutes.featureFor` maps every screen to
+its feature. A signed-in user who opens a screen of another role is sent back
+to their own home.
+
+| Feature | Routes | Student | Professor | Admin |
+| --- | --- | :-: | :-: | :-: |
+| `timetable` | `/timetable/**` | ✓ | ✓ | ✓ |
+| `attendanceCheckIn` | `/attendance/scan` | ✓ | | |
+| `myAttendance` | `/attendance/me` | ✓ | | |
+| `attendanceSession` | `/attendance/session` | | ✓ | |
+| `attendanceDashboard` | `/attendance/dashboard` | | ✓ | ✓ |
+| `courseManagement` | `/courses/**` | | | ✓ |
+| `settings` | `/settings` | ✓ | ✓ | ✓ |
+
 Until authentication exists, the role comes from a temporary
 `CurrentSession` (default role: `student`, registered in get_it). It will be
 replaced by the authentication feature (SCRUM-25 / SCRUM-28).
@@ -70,7 +85,9 @@ lib/
 │   │   ├── app_router.dart       # GoRouter + role-based redirect
 │   │   └── app_routes.dart       # Route path constants
 │   ├── session/
+│   │   ├── app_feature.dart      # Features guarded by role
 │   │   ├── current_session.dart  # TEMPORARY session (until auth)
+│   │   ├── role_access_policy.dart # Features allowed per role
 │   │   └── user_role.dart        # student / professor / admin
 │   ├── theme/app_theme.dart
 │   ├── usecase/usecase.dart      # UseCase<T, Params>, NoParams
