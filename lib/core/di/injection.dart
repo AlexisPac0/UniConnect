@@ -6,6 +6,9 @@ import 'package:uniconnect/features/courses/data/datasources/course_data_source.
 import 'package:uniconnect/features/courses/data/repositories/course_repository_impl.dart';
 import 'package:uniconnect/features/courses/domain/repositories/course_repository.dart';
 import 'package:uniconnect/features/courses/domain/usecases/create_course.dart';
+import 'package:uniconnect/features/courses/domain/usecases/delete_course.dart';
+import 'package:uniconnect/features/courses/domain/usecases/get_courses.dart';
+import 'package:uniconnect/features/courses/domain/usecases/suspend_course.dart';
 import 'package:uniconnect/features/courses/presentation/cubit/course_cubit.dart';
 import 'package:uniconnect/features/home/data/datasources/home_data_source.dart';
 import 'package:uniconnect/features/home/data/repositories/home_repository_impl.dart';
@@ -35,7 +38,10 @@ void _registerCourseFeature() {
       () => CourseRepositoryImpl(getIt()),
     )
     ..registerLazySingleton(() => CreateCourse(getIt()))
-    ..registerFactory(() => CourseCubit(getIt()));
+    ..registerLazySingleton(() => GetCourses(getIt()))
+    ..registerLazySingleton(() => SuspendCourse(getIt()))
+    ..registerLazySingleton(() => DeleteCourse(getIt()))
+    ..registerFactory(() => CourseCubit(getIt(), getIt(), getIt(), getIt()));
 }
 
 void _registerCore() {

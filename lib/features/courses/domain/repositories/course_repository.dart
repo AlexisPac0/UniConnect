@@ -7,4 +7,10 @@ abstract interface class CourseRepository {
     required String code,
     required String semester,
   });
+  Future<Result<List<Course>>> getCourses();
+  Future<Result<Course>> suspendCourse({
+    required String code,
+    required bool isSuspended,
+  });
+  Future<Result<void>> deleteCourse({required String code});
 }

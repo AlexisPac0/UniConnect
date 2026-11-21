@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uniconnect/core/di/injection.dart';
+import 'package:uniconnect/features/courses/domain/entities/course.dart';
 import 'package:uniconnect/features/courses/presentation/cubit/course_cubit.dart';
 
 class CoursePage extends StatelessWidget {
@@ -45,6 +46,14 @@ class _CourseViewState extends State<CourseView> {
     );
   }
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<CourseCubit>().load();
+    });
+  }
+
   String? _required(String? value) {
     return value == null || value.trim().isEmpty
         ? 'This field is required'
@@ -62,77 +71,160 @@ class _CourseViewState extends State<CourseView> {
               context,
             ).showSnackBar(SnackBar(content: Text(message)));
           }
+          if (state is CourseCreated) {
+            _nameController.clear();
+            _codeController.clear();
+            _semesterController.clear();
+            context.read<CourseCubit>().load();
+          }
         },
         builder: (context, state) {
           final isCreating = state is CourseCreating;
-          return Form(
-            key: _formKey,
-            child: ListView(
-              padding: const EdgeInsets.all(24),
-              children: [
-                Text(
-                  'Create a course',
-                  style: Theme.of(context).textTheme.headlineMedium,
+          final courses = switch (state) {
+            CourseLoaded(:final courses) => courses,
+            CourseCreated(:final courses) => courses,
+            CourseUpdating(:final courses) => courses,
+            CourseError(:final courses) => courses,
+            _ => const <Course>[],
+          };
+          return ListView(
+            padding: const EdgeInsets.all(24),
+            children: [
+              Text(
+                'Create a course',
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+              const SizedBox(height: 8),
+              const Text('Add a course to the university catalogue.'),
+              const SizedBox(height: 24),
+              Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    TextFormField(
+                      controller: _nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Course name',
+                        border: OutlineInputBorder(),
+                      ),
+                      textInputAction: TextInputAction.next,
+                      validator: _required,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _codeController,
+                      decoration: const InputDecoration(
+                        labelText: 'Course code',
+                        border: OutlineInputBorder(),
+                      ),
+                      textInputAction: TextInputAction.next,
+                      validator: _required,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _semesterController,
+                      decoration: const InputDecoration(
+                        labelText: 'Semester',
+                        border: OutlineInputBorder(),
+                      ),
+                      textInputAction: TextInputAction.done,
+                      validator: _required,
+                      onFieldSubmitted: (_) => _submit(),
+                    ),
+                    const SizedBox(height: 24),
+                    FilledButton(
+                      onPressed: isCreating ? null : _submit,
+                      child: isCreating
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Create course'),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                const Text('Add a course to the university catalogue.'),
-                const SizedBox(height: 24),
-                TextFormField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Course name',
-                    border: OutlineInputBorder(),
+              ),
+              const SizedBox(height: 32),
+              Text(
+                'Course list',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 12),
+              if (state is CourseLoading)
+                const Center(child: CircularProgressIndicator())
+              else if (courses.isEmpty)
+                const Card(
+                  child: ListTile(
+                    leading: Icon(Icons.school_outlined),
+                    title: Text('No courses'),
                   ),
-                  textInputAction: TextInputAction.next,
-                  validator: _required,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _codeController,
-                  decoration: const InputDecoration(
-                    labelText: 'Course code',
-                    border: OutlineInputBorder(),
-                  ),
-                  textInputAction: TextInputAction.next,
-                  validator: _required,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _semesterController,
-                  decoration: const InputDecoration(
-                    labelText: 'Semester',
-                    border: OutlineInputBorder(),
-                  ),
-                  textInputAction: TextInputAction.done,
-                  validator: _required,
-                  onFieldSubmitted: (_) => _submit(),
-                ),
-                const SizedBox(height: 24),
-                FilledButton(
-                  onPressed: isCreating ? null : _submit,
-                  child: isCreating
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Create course'),
-                ),
-                if (state case CourseCreated(:final course)) ...[
-                  const SizedBox(height: 24),
+                )
+              else
+                for (final course in courses)
                   Card(
                     child: ListTile(
-                      leading: const Icon(Icons.check_circle),
+                      leading: Icon(
+                        course.isSuspended
+                            ? Icons.pause_circle_outline
+                            : Icons.school_outlined,
+                      ),
                       title: Text(course.name),
-                      subtitle: Text('${course.code} · ${course.semester}'),
+                      subtitle: Text(
+                        '${course.code} · ${course.semester}'
+                        '${course.isSuspended ? ' · Suspended' : ''}',
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            tooltip: course.isSuspended
+                                ? 'Restore course'
+                                : 'Suspend course',
+                            icon: Icon(
+                              course.isSuspended
+                                  ? Icons.play_circle_outline
+                                  : Icons.pause_circle_outline,
+                            ),
+                            onPressed: () =>
+                                context.read<CourseCubit>().suspend(course),
+                          ),
+                          IconButton(
+                            tooltip: 'Delete course',
+                            icon: const Icon(Icons.delete_outline),
+                            onPressed: () => _confirmDelete(context, course),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ],
-              ],
-            ),
+            ],
           );
         },
       ),
     );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, Course course) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete course'),
+        content: Text('Permanently delete ${course.name}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      context.read<CourseCubit>().delete(course);
+    }
   }
 }
