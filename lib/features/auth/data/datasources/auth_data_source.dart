@@ -8,6 +8,10 @@ abstract interface class AuthDataSource {
     required String email,
     required String password,
   });
+
+  /// Emits the signed-in user, or `null` when nobody is signed in.
+  /// The stream may emit errors.
+  Stream<AuthUser?> authStateChanges();
 }
 
 /// [AuthDataSource] backed by the Firebase Auth SDK.
@@ -30,5 +34,18 @@ class FirebaseAuthDataSource implements AuthDataSource {
       throw StateError('Firebase returned no user after sign-in.');
     }
     return AuthUser(id: user.uid, email: user.email ?? email);
+  }
+
+  @override
+  Stream<AuthUser?> authStateChanges() {
+    return _firebaseAuth.authStateChanges().map(
+      (user) => user == null ? null : _toAuthUser(user),
+    );
+  }
+
+  /// A user signed in without an email (not possible with the providers of
+  /// UniConnect) gets an empty one rather than failing.
+  static AuthUser _toAuthUser(User user) {
+    return AuthUser(id: user.uid, email: user.email ?? '');
   }
 }

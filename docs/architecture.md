@@ -49,12 +49,42 @@ HomePage ──BlocProvider──▶ HomeCubit ──▶ GetWelcomeItems ──�
 ### Roles and navigation
 
 `UserRole` (`student`, `professor`, `admin`) is defined in `core/session`. The
-router `redirect` sends each role to its own home (`/student`, `/professor`,
-`/admin`) and signed-out users to `/login`.
+router `redirect` sends the app to `/splash` while the session is loading,
+signed-out users to `/login`, and each role to its own home (`/student`,
+`/professor`, `/admin`).
 
-Until authentication exists, the role comes from a temporary
-`CurrentSession` (default role: `student`, registered in get_it). It will be
-replaced by the authentication feature (SCRUM-25 / SCRUM-28).
+Access rules live in `core/session`: `RoleAccessPolicy` lists the
+`AppFeature`s of each role, and `AppRoutes.featureFor` maps every screen to
+its feature. A signed-in user who opens a screen of another role is sent back
+to their own home.
+
+| Feature | Routes | Student | Professor | Admin |
+| --- | --- | :-: | :-: | :-: |
+| `timetable` | `/timetable/**` | ✓ | ✓ | ✓ |
+| `attendanceCheckIn` | `/attendance/scan` | ✓ | | |
+| `myAttendance` | `/attendance/me` | ✓ | | |
+| `attendanceSession` | `/attendance/session` | | ✓ | |
+| `attendanceDashboard` | `/attendance/dashboard` | | ✓ | ✓ |
+| `courseManagement` | `/courses/**` | | | ✓ |
+| `settings` | `/settings` | ✓ | ✓ | ✓ |
+
+### Session flow
+
+```
+Firebase Auth ──▶ WatchAuthState ──▶ SessionController ──▶ GetUserProfile (users/{id})
+                                            │
+                                            ▼
+                                       AppSession ──refreshListenable──▶ GoRouter redirect
+```
+
+`AppSession` (`core/session`) holds the session state: `loading`, `signedOut`
+(with an optional error message) or `signedIn` (user id, role, display name).
+`SessionController` (`profile/presentation/session`) is started by `main`. It
+listens to Firebase Auth: nobody signed in gives `signedOut`; a signed-in user
+gives `loading`, then `signedIn` with the role of their profile, or
+`signedOut` with the failure message when the profile is missing or its role
+is invalid. If the user changes while a profile loads, the outdated result is
+ignored. `core` never imports a feature: it only knows `AppSession`.
 
 ## Project structure
 
@@ -70,11 +100,15 @@ lib/
 │   │   ├── app_router.dart       # GoRouter + role-based redirect
 │   │   └── app_routes.dart       # Route path constants
 │   ├── session/
-│   │   ├── current_session.dart  # TEMPORARY session (until auth)
+│   │   ├── app_feature.dart      # Features guarded by role
+│   │   ├── app_session.dart      # loading / signedOut / signedIn
+│   │   ├── role_access_policy.dart # Features allowed per role
 │   │   └── user_role.dart        # student / professor / admin
 │   ├── theme/app_theme.dart
 │   ├── usecase/usecase.dart      # UseCase<T, Params>, NoParams
-│   └── widgets/placeholder_page.dart
+│   └── widgets/
+│       ├── placeholder_page.dart
+│       └── splash_page.dart
 └── features/
     └── home/                     # Reference feature
         ├── data/

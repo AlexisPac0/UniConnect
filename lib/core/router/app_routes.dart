@@ -1,9 +1,13 @@
+import 'package:uniconnect/core/session/app_feature.dart';
 import 'package:uniconnect/core/session/user_role.dart';
 
 /// Paths of every main screen. Always navigate with these constants
 /// (`context.push(AppRoutes.timetable)`), never with raw strings.
 abstract final class AppRoutes {
   static const String root = '/';
+
+  /// Shown while the session is loading.
+  static const String splash = '/splash';
   static const String login = '/login';
 
   // Homes, one per role.
@@ -34,6 +38,28 @@ abstract final class AppRoutes {
 
   static String courseMembersPath(String courseId) =>
       '/courses/${Uri.encodeComponent(courseId)}/members';
+
+  /// Feature guarding each route. A route also covers its sub-paths
+  /// (`/timetable` covers `/timetable/lectures/42`).
+  static const Map<String, AppFeature> _featureByRoute = {
+    timetable: AppFeature.timetable,
+    qrScan: AppFeature.attendanceCheckIn,
+    myAttendance: AppFeature.myAttendance,
+    attendanceSession: AppFeature.attendanceSession,
+    attendanceDashboard: AppFeature.attendanceDashboard,
+    courses: AppFeature.courseManagement,
+    settings: AppFeature.settings,
+  };
+
+  /// Returns the feature a [location] belongs to, or `null` when it is not
+  /// guarded by a feature (splash, login, homes, unknown paths).
+  static AppFeature? featureFor(String location) {
+    for (final MapEntry(key: route, value: feature)
+        in _featureByRoute.entries) {
+      if (location == route || location.startsWith('$route/')) return feature;
+    }
+    return null;
+  }
 
   static String homeFor(UserRole role) {
     return switch (role) {
