@@ -32,8 +32,9 @@ placeholder.
 
 
 - Git and the [Flutter SDK](https://docs.flutter.dev/install), available on your
-  command line. The project's documented reference is **Flutter 3.35.3 stable**
-  with **Dart 3.9.2** (Dart is bundled with Flutter).
+  command line. Use **Flutter 3.44.0 stable**, matching CI. The
+  current dependency lockfile requires **Dart 3.11 or newer** (Dart is bundled
+  with Flutter).
 - For Android: Android Studio with the Android SDK and an emulator, or an
   Android device with USB debugging enabled.
 - For iOS: macOS with Xcode and an iOS simulator or configured physical device.
