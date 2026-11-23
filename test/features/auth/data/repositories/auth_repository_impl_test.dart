@@ -144,4 +144,33 @@ void main() {
       expect(repository.authStateChanges(), emitsInOrder([isNull, emitsDone]));
     });
   });
+
+  group('signOut', () {
+    test('returns a Success when the data source signs out', () async {
+      when(() => dataSource.signOut()).thenAnswer((_) async {});
+
+      final result = await repository.signOut();
+
+      expect(result, const Success<void>(null));
+      verify(() => dataSource.signOut()).called(1);
+    });
+
+    for (final error in <Object>[
+      FirebaseAuthException(code: 'network-request-failed'),
+      Exception('boom'),
+      StateError('boom'),
+    ]) {
+      test('returns an UnexpectedFailure on ${error.runtimeType}', () async {
+        when(() => dataSource.signOut()).thenThrow(error);
+
+        final result = await repository.signOut();
+
+        expect(result, isA<Failure<void>>());
+        final failure = (result as Failure<void>).failure;
+        expect(failure, isA<UnexpectedFailure>());
+        expect(failure.message, 'Could not log you out. Please try again.');
+        expect((failure as UnexpectedFailure).cause, same(error));
+      });
+    }
+  });
 }
