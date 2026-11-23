@@ -5,6 +5,7 @@ import 'package:uniconnect/core/session/role_access_policy.dart';
 import 'package:uniconnect/core/session/user_role.dart';
 import 'package:uniconnect/core/widgets/placeholder_page.dart';
 import 'package:uniconnect/core/widgets/splash_page.dart';
+import 'package:uniconnect/features/auth/presentation/pages/login_page.dart';
 import 'package:uniconnect/features/home/presentation/pages/home_page.dart';
 
 /// Builds the router of the app.
@@ -20,10 +21,9 @@ GoRouter createAppRouter(AppSession session) {
     routes: [
       GoRoute(path: AppRoutes.root, redirect: (_, _) => AppRoutes.login),
       GoRoute(path: AppRoutes.splash, builder: (_, _) => const SplashPage()),
-      // TODO(SCRUM-25): real login screen.
       GoRoute(
         path: AppRoutes.login,
-        builder: (_, _) => const PlaceholderPage(title: 'Login'),
+        builder: (_, _) => LoginPage(sessionErrorMessage: session.errorMessage),
       ),
       GoRoute(
         path: AppRoutes.studentHome,

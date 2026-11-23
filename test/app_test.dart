@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:uniconnect/app.dart';
 import 'package:uniconnect/core/di/injection.dart';
 import 'package:uniconnect/core/session/app_session.dart';
 import 'package:uniconnect/core/session/user_role.dart';
 import 'package:uniconnect/core/widgets/splash_page.dart';
+import 'package:uniconnect/features/auth/data/datasources/auth_data_source.dart';
+import 'package:uniconnect/features/auth/presentation/pages/login_page.dart';
+
+/// Replaces Firebase Auth, which is not initialized in tests.
+class MockAuthDataSource extends Mock implements AuthDataSource {}
 
 /// End-to-end smoke tests with the real dependency graph.
 ///
@@ -40,10 +46,14 @@ void main() {
   });
 
   testWidgets('shows the login screen when signed out', (tester) async {
+    getIt
+      ..unregister<AuthDataSource>()
+      ..registerLazySingleton<AuthDataSource>(MockAuthDataSource.new);
     session().setSignedOut();
     await pumpApp(tester);
 
-    expect(find.widgetWithText(AppBar, 'Login'), findsOneWidget);
+    expect(find.byType(LoginPage), findsOneWidget);
+    expect(find.text('Sign in'), findsOneWidget);
   });
 
   testWidgets('a signed-in student starts on the student home', (tester) async {
