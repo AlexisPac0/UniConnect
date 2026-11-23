@@ -7,14 +7,23 @@ import 'package:uniconnect/core/di/injection.dart';
 import 'package:uniconnect/core/router/app_router.dart';
 import 'package:uniconnect/core/router/app_routes.dart';
 import 'package:uniconnect/core/session/app_feature.dart';
-import 'package:uniconnect/core/session/current_session.dart';
+import 'package:uniconnect/core/session/app_session.dart';
 import 'package:uniconnect/core/session/role_access_policy.dart';
 import 'package:uniconnect/core/session/user_role.dart';
 import 'package:uniconnect/core/widgets/placeholder_page.dart';
+import 'package:uniconnect/core/widgets/splash_page.dart';
 import 'package:uniconnect/features/home/presentation/cubit/home_cubit.dart';
 import 'package:uniconnect/features/home/presentation/pages/home_page.dart';
 
 class MockHomeCubit extends MockCubit<HomeState> implements HomeCubit {}
+
+AppSession signedInAs(UserRole role) {
+  return AppSession(
+    SessionSignedIn(userId: 'user-1', role: role, displayName: 'Test user'),
+  );
+}
+
+AppSession signedOut() => AppSession(const SessionSignedOut());
 
 void main() {
   group('AppRoutes.featureFor', () {
@@ -39,8 +48,9 @@ void main() {
       expect(features.values.toSet(), AppFeature.values.toSet());
     });
 
-    test('login, root, homes and unknown paths are not guarded', () {
+    test('splash, login, root, homes and unknown paths are not guarded', () {
       for (final path in [
+        AppRoutes.splash,
         AppRoutes.login,
         AppRoutes.root,
         ...AppRoutes.homes,
@@ -53,10 +63,31 @@ void main() {
   });
 
   group('redirectForSession', () {
+    test('loading: every route goes to the splash screen', () {
+      final session = AppSession();
+
+      for (final path in [
+        AppRoutes.root,
+        AppRoutes.login,
+        AppRoutes.studentHome,
+        AppRoutes.timetable,
+        AppRoutes.courses,
+        '/does-not-exist',
+      ]) {
+        expect(
+          redirectForSession(session, path),
+          AppRoutes.splash,
+          reason: path,
+        );
+      }
+      expect(redirectForSession(session, AppRoutes.splash), isNull);
+    });
+
     test('signed out: every route goes to login', () {
-      final session = CurrentSession(role: null);
+      final session = signedOut();
 
       expect(redirectForSession(session, AppRoutes.root), AppRoutes.login);
+      expect(redirectForSession(session, AppRoutes.splash), AppRoutes.login);
       expect(
         redirectForSession(session, AppRoutes.studentHome),
         AppRoutes.login,
@@ -67,10 +98,11 @@ void main() {
 
     for (final role in UserRole.values) {
       group('signed in as ${role.name}', () {
-        final session = CurrentSession(role: role);
+        final session = signedInAs(role);
         final home = AppRoutes.homeFor(role);
 
-        test('login and root go to the role home', () {
+        test('splash, login and root go to the role home', () {
+          expect(redirectForSession(session, AppRoutes.splash), home);
           expect(redirectForSession(session, AppRoutes.login), home);
           expect(redirectForSession(session, AppRoutes.root), home);
         });
@@ -115,7 +147,7 @@ void main() {
     }
 
     test('a student is sent home from professor and admin screens', () {
-      final session = CurrentSession();
+      final session = signedInAs(UserRole.student);
 
       expect(
         redirectForSession(session, AppRoutes.attendanceSession),
@@ -128,7 +160,7 @@ void main() {
     });
 
     test('a professor cannot manage courses or scan a QR code', () {
-      final session = CurrentSession(role: UserRole.professor);
+      final session = signedInAs(UserRole.professor);
 
       expect(
         redirectForSession(session, AppRoutes.courses),
@@ -141,7 +173,7 @@ void main() {
     });
 
     test('an admin cannot open an attendance session', () {
-      final session = CurrentSession(role: UserRole.admin);
+      final session = signedInAs(UserRole.admin);
 
       expect(
         redirectForSession(session, AppRoutes.attendanceSession),
@@ -150,11 +182,19 @@ void main() {
     });
 
     test('unknown paths are not redirected', () {
-      expect(redirectForSession(CurrentSession(), '/does-not-exist'), isNull);
+      expect(
+        redirectForSession(signedInAs(UserRole.student), '/does-not-exist'),
+        isNull,
+      );
     });
 
-    test('the default temporary session is a student', () {
-      expect(CurrentSession().role, UserRole.student);
+    test('a signed-out error message does not change the redirect', () {
+      final session = AppSession(
+        const SessionSignedOut(errorMessage: 'Profile not found'),
+      );
+
+      expect(redirectForSession(session, AppRoutes.timetable), AppRoutes.login);
+      expect(redirectForSession(session, AppRoutes.login), isNull);
     });
   });
 
@@ -172,14 +212,21 @@ void main() {
 
     tearDown(() => getIt.reset());
 
-    Future<GoRouter> pumpRouter(
-      WidgetTester tester,
-      CurrentSession session,
-    ) async {
+    Future<void> settle(WidgetTester tester, AppSession session) async {
+      if (session.state is SessionLoading) {
+        await tester.pump();
+      } else {
+        await tester.pumpAndSettle();
+      }
+    }
+
+    /// The splash screen spins forever, so a loading session is only pumped
+    /// once instead of settled.
+    Future<GoRouter> pumpRouter(WidgetTester tester, AppSession session) async {
       final router = createAppRouter(session);
       addTearDown(router.dispose);
       await tester.pumpWidget(MaterialApp.router(routerConfig: router));
-      await tester.pumpAndSettle();
+      await settle(tester, session);
       return router;
     }
 
@@ -191,22 +238,30 @@ void main() {
 
     for (final role in UserRole.values) {
       testWidgets('starts on the ${role.name} home', (tester) async {
-        final router = await pumpRouter(tester, CurrentSession(role: role));
+        final router = await pumpRouter(tester, signedInAs(role));
 
         expect(currentPath(router), AppRoutes.homeFor(role));
         expect(homeOf(role), findsOneWidget);
       });
     }
 
+    testWidgets('starts on the splash screen while loading', (tester) async {
+      final router = await pumpRouter(tester, AppSession());
+
+      expect(currentPath(router), AppRoutes.splash);
+      expect(find.byType(SplashPage), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    });
+
     testWidgets('shows the login placeholder when signed out', (tester) async {
-      final router = await pumpRouter(tester, CurrentSession(role: null));
+      final router = await pumpRouter(tester, signedOut());
 
       expect(currentPath(router), AppRoutes.login);
       expect(find.widgetWithText(AppBar, 'Login'), findsOneWidget);
     });
 
     testWidgets('a student cannot open the admin home', (tester) async {
-      final router = await pumpRouter(tester, CurrentSession());
+      final router = await pumpRouter(tester, signedInAs(UserRole.student));
 
       router.go(AppRoutes.adminHome);
       await tester.pumpAndSettle();
@@ -216,16 +271,33 @@ void main() {
     });
 
     testWidgets('reacts to session changes', (tester) async {
-      final session = CurrentSession();
+      final session = AppSession();
       final router = await pumpRouter(tester, session);
+      expect(currentPath(router), AppRoutes.splash);
 
-      session.signInAs(UserRole.admin);
-      await tester.pumpAndSettle();
+      session.setSignedIn(
+        userId: 'user-1',
+        role: UserRole.admin,
+        displayName: 'Test user',
+      );
+      await settle(tester, session);
       expect(currentPath(router), AppRoutes.adminHome);
 
-      session.signOut();
-      await tester.pumpAndSettle();
+      session.setLoading();
+      await settle(tester, session);
+      expect(currentPath(router), AppRoutes.splash);
+
+      session.setSignedOut();
+      await settle(tester, session);
       expect(currentPath(router), AppRoutes.login);
+
+      session.setSignedIn(
+        userId: 'user-2',
+        role: UserRole.professor,
+        displayName: 'Test user',
+      );
+      await settle(tester, session);
+      expect(currentPath(router), AppRoutes.professorHome);
     });
 
     // Each placeholder is opened with a role allowed to see it.
@@ -249,7 +321,7 @@ void main() {
     placeholders.forEach((path, entry) {
       final (title, role) = entry;
       testWidgets('$path shows the "$title" placeholder', (tester) async {
-        final router = await pumpRouter(tester, CurrentSession(role: role));
+        final router = await pumpRouter(tester, signedInAs(role));
 
         router.go(path);
         await tester.pumpAndSettle();
@@ -261,7 +333,7 @@ void main() {
     });
 
     testWidgets('a student cannot open the courses screen', (tester) async {
-      final router = await pumpRouter(tester, CurrentSession());
+      final router = await pumpRouter(tester, signedInAs(UserRole.student));
 
       router.go(AppRoutes.courses);
       await tester.pumpAndSettle();
@@ -271,7 +343,7 @@ void main() {
     });
 
     testWidgets('unknown routes show "Page not found"', (tester) async {
-      final router = await pumpRouter(tester, CurrentSession());
+      final router = await pumpRouter(tester, signedInAs(UserRole.student));
 
       router.go('/does-not-exist');
       await tester.pumpAndSettle();

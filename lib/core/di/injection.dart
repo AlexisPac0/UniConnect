@@ -1,8 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uniconnect/core/router/app_router.dart';
-import 'package:uniconnect/core/session/current_session.dart';
+import 'package:uniconnect/core/session/app_session.dart';
+import 'package:uniconnect/features/auth/data/datasources/auth_data_source.dart';
+import 'package:uniconnect/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:uniconnect/features/auth/domain/repositories/auth_repository.dart';
+import 'package:uniconnect/features/auth/domain/usecases/sign_in_with_email.dart';
+import 'package:uniconnect/features/auth/domain/usecases/watch_auth_state.dart';
 import 'package:uniconnect/features/home/data/datasources/home_data_source.dart';
 import 'package:uniconnect/features/home/data/repositories/home_repository_impl.dart';
 import 'package:uniconnect/features/home/domain/repositories/home_repository.dart';
@@ -12,6 +18,7 @@ import 'package:uniconnect/features/profile/data/datasources/user_profile_data_s
 import 'package:uniconnect/features/profile/data/repositories/user_profile_repository_impl.dart';
 import 'package:uniconnect/features/profile/domain/repositories/user_profile_repository.dart';
 import 'package:uniconnect/features/profile/domain/usecases/get_user_profile.dart';
+import 'package:uniconnect/features/profile/presentation/session/session_controller.dart';
 
 /// Global service locator.
 ///
@@ -22,22 +29,35 @@ import 'package:uniconnect/features/profile/domain/usecases/get_user_profile.dar
 final GetIt getIt = GetIt.instance;
 
 /// Registers all dependencies. Must be called once before `runApp`.
+///
+/// Every registration is lazy: nothing is created, and Firebase is not
+/// touched, until a dependency is first requested.
 void configureDependencies() {
   _registerCore();
+  _registerAuthFeature();
   _registerHomeFeature();
   _registerProfileFeature();
 }
 
 void _registerCore() {
   getIt
-    // TODO(SCRUM-25, SCRUM-28): replace with the authentication feature.
-    ..registerLazySingleton(CurrentSession.new)
+    ..registerLazySingleton(AppSession.new)
     ..registerLazySingleton<GoRouter>(() => createAppRouter(getIt()));
 }
 
 /// Lifetimes:
 /// - data sources, repositories and use cases are stateless: lazy singletons;
 /// - cubits hold screen state: factories (a new instance per screen).
+void _registerAuthFeature() {
+  getIt
+    ..registerLazySingleton<AuthDataSource>(
+      () => FirebaseAuthDataSource(FirebaseAuth.instance),
+    )
+    ..registerLazySingleton<AuthRepository>(() => AuthRepositoryImpl(getIt()))
+    ..registerLazySingleton(() => SignInWithEmail(getIt()))
+    ..registerLazySingleton(() => WatchAuthState(getIt()));
+}
+
 void _registerHomeFeature() {
   getIt
     ..registerLazySingleton<HomeDataSource>(InMemoryHomeDataSource.new)
@@ -46,8 +66,8 @@ void _registerHomeFeature() {
     ..registerFactory(() => HomeCubit(getIt()));
 }
 
-/// Everything is lazy: `FirebaseFirestore.instance` is only read the first
-/// time the profile is requested, so nothing touches Firebase at startup.
+/// `FirebaseFirestore.instance` is only read the first time the profile is
+/// requested. [SessionController] is started by `main`, never by the tests.
 void _registerProfileFeature() {
   getIt
     ..registerLazySingleton<UserProfileDataSource>(
@@ -56,5 +76,13 @@ void _registerProfileFeature() {
     ..registerLazySingleton<UserProfileRepository>(
       () => UserProfileRepositoryImpl(getIt()),
     )
-    ..registerLazySingleton(() => GetUserProfile(getIt()));
+    ..registerLazySingleton(() => GetUserProfile(getIt()))
+    ..registerLazySingleton(
+      () => SessionController(
+        watchAuthState: getIt(),
+        getUserProfile: getIt(),
+        session: getIt(),
+      ),
+      dispose: (controller) => controller.dispose(),
+    );
 }

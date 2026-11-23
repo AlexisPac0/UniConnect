@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uniconnect/app.dart';
 import 'package:uniconnect/core/di/injection.dart';
+import 'package:uniconnect/features/profile/presentation/session/session_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -11,5 +12,6 @@ Future<void> main() async {
   // Those files are not committed, see "Firebase setup" in README.md.
   await Firebase.initializeApp();
   configureDependencies();
+  getIt<SessionController>().start();
   runApp(UniConnectApp(router: getIt<GoRouter>()));
 }

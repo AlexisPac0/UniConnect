@@ -9,12 +9,12 @@ administrators, targeting Android and iOS. Its planned modules are **Timetable**
 
 The project currently provides the application foundation: layered architecture,
 role-based navigation and a reference home feature backed by in-memory data.
-Other screens are placeholders. Firebase Authentication, Cloud Firestore and
-Cloud Messaging are planned but are **not integrated yet**.
+Other screens are placeholders. The session comes from Firebase Authentication,
+and the role of the user from their profile in Cloud Firestore
+(`users/{id}`). Cloud Messaging is planned but **not integrated yet**.
 
-No Firebase account, credentials or environment file is required to run the
-current app. A temporary session starts as a student; this is not real
-authentication.
+The login screen is not available yet: a signed-out user stays on the login
+placeholder.
 
 | Concern | Choice |
 | --- | --- |
@@ -64,7 +64,8 @@ flutter run
 
 If several devices are available, select one with
 `flutter run -d <device-id>`, using an ID from `flutter devices`.
-The app opens the student home screen with sample data.
+The app opens on a splash screen, then the login screen or the home of the
+signed-in user's role.
 
 ### Checks
 

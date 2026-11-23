@@ -5,6 +5,9 @@ import 'package:uniconnect/core/session/user_role.dart';
 /// (`context.push(AppRoutes.timetable)`), never with raw strings.
 abstract final class AppRoutes {
   static const String root = '/';
+
+  /// Shown while the session is loading.
+  static const String splash = '/splash';
   static const String login = '/login';
 
   // Homes, one per role.
@@ -49,7 +52,7 @@ abstract final class AppRoutes {
   };
 
   /// Returns the feature a [location] belongs to, or `null` when it is not
-  /// guarded by a feature (login, homes, unknown paths).
+  /// guarded by a feature (splash, login, homes, unknown paths).
   static AppFeature? featureFor(String location) {
     for (final MapEntry(key: route, value: feature)
         in _featureByRoute.entries) {

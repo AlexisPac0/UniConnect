@@ -1,23 +1,25 @@
 import 'package:go_router/go_router.dart';
 import 'package:uniconnect/core/router/app_routes.dart';
-import 'package:uniconnect/core/session/current_session.dart';
+import 'package:uniconnect/core/session/app_session.dart';
 import 'package:uniconnect/core/session/role_access_policy.dart';
 import 'package:uniconnect/core/session/user_role.dart';
 import 'package:uniconnect/core/widgets/placeholder_page.dart';
+import 'package:uniconnect/core/widgets/splash_page.dart';
 import 'package:uniconnect/features/home/presentation/pages/home_page.dart';
 
 /// Builds the router of the app.
 ///
 /// Screens that are not implemented yet use a [PlaceholderPage]; replace the
 /// builder when the feature lands.
-GoRouter createAppRouter(CurrentSession session) {
+GoRouter createAppRouter(AppSession session) {
   return GoRouter(
-    initialLocation: AppRoutes.login,
+    initialLocation: AppRoutes.splash,
     refreshListenable: session,
     redirect: (_, state) => redirectForSession(session, state.uri.path),
     errorBuilder: (_, _) => const PlaceholderPage(title: 'Page not found'),
     routes: [
       GoRoute(path: AppRoutes.root, redirect: (_, _) => AppRoutes.login),
+      GoRoute(path: AppRoutes.splash, builder: (_, _) => const SplashPage()),
       // TODO(SCRUM-25): real login screen.
       GoRoute(
         path: AppRoutes.login,
@@ -79,29 +81,37 @@ GoRouter createAppRouter(CurrentSession session) {
   );
 }
 
-/// Role-based redirect, kept as a pure function so it is easy to unit test.
+/// Redirect based on the [AppSession], kept as a pure function so it is easy
+/// to unit test.
 ///
+/// - loading: everything goes to the splash screen;
 /// - signed out: everything goes to the login screen;
-/// - signed in: login, `/` and the home of another role go to the user's home;
+/// - signed in: splash, login, `/` and the home of another role go to the
+///   user's home;
 /// - signed in: a route whose feature is not allowed for the role (see
 ///   [RoleAccessPolicy]) goes to the user's home.
 ///
 /// Returns `null` when no redirect is needed.
-///
-/// TODO(SCRUM-25, SCRUM-28): read the role from the authentication feature.
 String? redirectForSession(
-  CurrentSession session,
+  AppSession session,
   String location, {
   RoleAccessPolicy policy = const RoleAccessPolicy(),
 }) {
-  final role = session.role;
-  if (role == null) {
-    return location == AppRoutes.login ? null : AppRoutes.login;
+  final UserRole role;
+  switch (session.state) {
+    case SessionLoading():
+      return location == AppRoutes.splash ? null : AppRoutes.splash;
+    case SessionSignedOut():
+      return location == AppRoutes.login ? null : AppRoutes.login;
+    case SessionSignedIn(role: final signedInRole):
+      role = signedInRole;
   }
 
   final home = AppRoutes.homeFor(role);
   final isEntryPoint =
-      location == AppRoutes.login || location == AppRoutes.root;
+      location == AppRoutes.splash ||
+      location == AppRoutes.login ||
+      location == AppRoutes.root;
   final isOtherHome = AppRoutes.homes.contains(location) && location != home;
   if (isEntryPoint || isOtherHome) return home;
 
