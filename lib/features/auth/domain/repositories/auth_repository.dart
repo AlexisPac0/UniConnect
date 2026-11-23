@@ -10,4 +10,10 @@ abstract interface class AuthRepository {
     required String email,
     required String password,
   });
+
+  /// Emits the signed-in user, or `null` when nobody is signed in, now and
+  /// every time it changes.
+  ///
+  /// The stream never emits an error: an error is treated as signed out.
+  Stream<AuthUser?> authStateChanges();
 }

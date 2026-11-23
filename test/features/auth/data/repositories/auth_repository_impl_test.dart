@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -101,5 +103,45 @@ void main() {
 
     expect(failure, isA<UnexpectedFailure>());
     expect(failure.message, isNotEmpty);
+  });
+
+  group('authStateChanges', () {
+    test('forwards the users and null given by the data source', () {
+      when(
+        () => dataSource.authStateChanges(),
+      ).thenAnswer((_) => Stream.fromIterable(const [tUser, null]));
+
+      expect(
+        repository.authStateChanges(),
+        emitsInOrder([tUser, null, emitsDone]),
+      );
+    });
+
+    test(
+      'an error in the stream is emitted as null and the stream goes on',
+      () {
+        final controller = StreamController<AuthUser?>();
+        addTearDown(controller.close);
+        when(
+          () => dataSource.authStateChanges(),
+        ).thenAnswer((_) => controller.stream);
+
+        expect(
+          repository.authStateChanges(),
+          emitsInOrder(const [tUser, null, tUser]),
+        );
+
+        controller
+          ..add(tUser)
+          ..addError(FirebaseAuthException(code: 'network-request-failed'))
+          ..add(tUser);
+      },
+    );
+
+    test('an error when subscribing is emitted as null', () {
+      when(() => dataSource.authStateChanges()).thenThrow(StateError('boom'));
+
+      expect(repository.authStateChanges(), emitsInOrder([isNull, emitsDone]));
+    });
   });
 }

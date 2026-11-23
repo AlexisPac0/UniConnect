@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uniconnect/core/error/failure.dart';
 import 'package:uniconnect/core/result/result.dart';
@@ -36,6 +38,23 @@ class AuthRepositoryImpl implements AuthRepository {
         ),
       );
     }
+  }
+
+  /// Any error, in the stream or when subscribing, is emitted as `null`
+  /// (signed out), so that the stream never fails.
+  @override
+  Stream<AuthUser?> authStateChanges() {
+    final Stream<AuthUser?> source;
+    try {
+      source = _dataSource.authStateChanges();
+    } catch (_) {
+      return Stream.value(null);
+    }
+    return source.transform(
+      StreamTransformer.fromHandlers(
+        handleError: (_, _, sink) => sink.add(null),
+      ),
+    );
   }
 
   AppFailure _mapFirebaseError(FirebaseAuthException error) {
