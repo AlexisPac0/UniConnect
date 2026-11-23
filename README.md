@@ -32,7 +32,7 @@ authentication.
 
 
 - Git and the [Flutter SDK](https://docs.flutter.dev/install), available on your
-  command line. Use the **latest stable Flutter SDK**, matching CI. The
+  command line. Use **Flutter 3.44.0 stable**, matching CI. The
   current dependency lockfile requires **Dart 3.11 or newer** (Dart is bundled
   with Flutter).
 - For Android: Android Studio with the Android SDK and an emulator, or an

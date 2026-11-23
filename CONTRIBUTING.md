@@ -135,12 +135,13 @@ node --test .github/scripts/check-conventions.test.mjs
 ```
 
 The **Flutter CI** workflow runs on the same PR and push events. It installs
-the latest stable Flutter SDK and dependencies, then runs `flutter analyze`
+Flutter 3.44.0 stable and dependencies, then runs `flutter analyze`
 and `flutter test` as independent checks on Linux. An analysis failure does
 not cancel the tests. `flutter test` runs the full `test/` suite, including
 unit, widget, and architecture tests; no emulator is required.
-The SDK version is printed in each job's log. CI follows the stable channel
-rather than pinning an SDK release. Continue running both checks locally
+The SDK version is printed in each job's log. CI pins the SDK release so
+new Flutter releases do not unexpectedly change analysis results. Update
+the workflow and README together when upgrading. Continue running both checks locally
 before opening a PR.
 
 After saving, verify that the rule targets `main` and that GitHub shows the
