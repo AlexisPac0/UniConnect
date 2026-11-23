@@ -1,0 +1,35 @@
+name: Repository conventions
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  branch-naming:
+    name: Branch naming
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: node .github/scripts/check-conventions.mjs branch
+
+  commit-conventions:
+    name: Commit conventions
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Test policy validator
+        run: node --test .github/scripts/check-conventions.test.mjs
+      - run: node .github/scripts/check-conventions.mjs commits

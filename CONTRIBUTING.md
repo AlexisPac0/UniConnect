@@ -101,9 +101,39 @@ branch name pattern to `main` and configure:
   to administrators.
 - Leave **Allow force pushes** and **Allow deletions** disabled.
 
-There is currently no GitHub Actions workflow in the repository. Run the
-analysis and tests locally and record the results in the PR; do not configure
-required status checks that do not exist.
+The **Repository conventions** workflow runs on pull requests targeting
+`main` and pushes to `main`, not on pushes to other branches. After its first
+run, enable **Require status checks to pass before merging** and select both
+**Branch naming** and **Commit conventions** (GitHub Actions as the source).
+These settings are required to block merges when a policy check fails;
+adding the workflow alone does not enable branch protection.
+
+The branch check enforces the format and prefixes above, with a positive
+ticket number and a lowercase, hyphen-separated description. `main` itself
+is exempt. The commit check validates every non-merge commit introduced by
+the PR, excluding commits already on the target branch. On pushes to `main`,
+it checks the newly introduced commits between the before and after SHAs.
+Actual merge commits are excluded based on parent count, not their messages.
+
+Commit subjects must use `<type>: <description> (SCRUM-<positive-number>)`
+with a type from the commit table above and a nonempty description. Optional
+commit bodies are allowed. Ticket numbers do not need to match the branch
+ticket. English wording and imperative style remain review responsibilities.
+An invalid earlier commit still fails the check even if the latest commit
+is valid; correct the offending messages before merging. Feature branches
+can receive any commits, but their PRs must pass these checks. A check on a
+push to `main` detects violations after the push; it cannot reject the push
+retroactively. When squash merging, ensure the final squash commit subject
+also follows the convention.
+
+Run the policy validator tests locally with Node.js 20 or newer:
+
+```bash
+node --test .github/scripts/check-conventions.test.mjs
+```
+
+Flutter analysis and tests are not yet automated by this workflow. Run them
+locally and record the results in the PR until their CI checks are added.
 
 After saving, verify that the rule targets `main` and that GitHub shows the
 approval requirement on a pull request. SCRUM-17 is not complete until this
