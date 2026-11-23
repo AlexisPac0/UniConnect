@@ -33,20 +33,14 @@ migrate_working_dir/
 /build/
 /coverage/
 
-# Symbolication related
 app.*.symbols
 
-# Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
 /android/app/debug
 /android/app/profile
 /android/app/release
 
-# Firebase configuration (SCRUM-13)
-# Generated per developer with `flutterfire configure` or downloaded from the
-# Firebase console. Never commit these files: see "Firebase setup" in README.
 /android/app/google-services.json
 /ios/Runner/GoogleService-Info.plist
 /ios/firebase_app_id_file.json
