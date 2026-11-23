@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uniconnect/features/courses/data/models/course_model.dart';
 
 abstract interface class CourseDataSource {
@@ -14,22 +15,27 @@ abstract interface class CourseDataSource {
   Future<void> deleteCourse({required String code});
 }
 
-/// Temporary backend substitute until the course API is available.
-class FakeCourseDataSource implements CourseDataSource {
-  const FakeCourseDataSource();
+class FirestoreCourseDataSource implements CourseDataSource {
+  FirestoreCourseDataSource([FirebaseFirestore? firestore])
+    : _firestore = firestore;
 
-  static final List<CourseModel> _courses = [
-    const CourseModel(
-      name: 'Algorithms',
-      code: 'ALG201',
-      semester: 'Winter 2026',
-    ),
-    const CourseModel(
-      name: 'Mobile Development',
-      code: 'MOB101',
-      semester: 'Summer 2026',
-    ),
-  ];
+  final FirebaseFirestore? _firestore;
+  FirebaseFirestore get _database => _firestore ?? FirebaseFirestore.instance;
+  CollectionReference<Map<String, dynamic>> get _courses =>
+      _database.collection('courses');
+
+  CourseModel _fromDocument(
+    QueryDocumentSnapshot<Map<String, dynamic>> document,
+  ) {
+    final data = document.data();
+    return CourseModel(
+      id: document.id,
+      name: (data['name'] as String?)?.trim() ?? '',
+      code: (data['code'] as String?)?.trim().toUpperCase() ?? '',
+      semester: (data['semester'] as String?)?.trim() ?? '',
+      isSuspended: data['isSuspended'] as bool? ?? false,
+    );
+  }
 
   @override
   Future<CourseModel> createCourse({
@@ -37,20 +43,46 @@ class FakeCourseDataSource implements CourseDataSource {
     required String code,
     required String semester,
   }) async {
-    await Future<void>.delayed(const Duration(milliseconds: 400));
-    final course = CourseModel(
-      name: name.trim(),
-      code: code.trim().toUpperCase(),
-      semester: semester.trim(),
+    final normalizedCode = code.trim().toUpperCase();
+    final existing = await _courses
+        .where('code', isEqualTo: normalizedCode)
+        .limit(1)
+        .get();
+    if (existing.docs.isNotEmpty) {
+      throw FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'already-exists',
+        message: 'A course with this code already exists.',
+      );
+    }
+
+    final now = FieldValue.serverTimestamp();
+    final reference = await _courses.add({
+      'code': normalizedCode,
+      'name': name.trim(),
+      'semester': semester.trim(),
+      'isSuspended': false,
+      'professorIds': <String>[],
+      'studentCount': 0,
+      'createdAt': now,
+      'updatedAt': now,
+    });
+    final document = await reference.get();
+    final data = document.data();
+    if (data == null) throw StateError('The created course is missing.');
+    return CourseModel(
+      id: document.id,
+      name: (data['name'] as String?)?.trim() ?? name.trim(),
+      code: (data['code'] as String?)?.trim().toUpperCase() ?? normalizedCode,
+      semester: (data['semester'] as String?)?.trim() ?? semester.trim(),
+      isSuspended: data['isSuspended'] as bool? ?? false,
     );
-    _courses.add(course);
-    return course;
   }
 
   @override
   Future<List<CourseModel>> getCourses() async {
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    return List<CourseModel>.unmodifiable(_courses);
+    final snapshot = await _courses.orderBy('name').get();
+    return snapshot.docs.map(_fromDocument).toList();
   }
 
   @override
@@ -58,26 +90,43 @@ class FakeCourseDataSource implements CourseDataSource {
     required String code,
     required bool isSuspended,
   }) async {
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    final index = _courses.indexWhere(
-      (course) => course.code.toUpperCase() == code.toUpperCase(),
-    );
-    if (index == -1) throw Exception('Course not found');
-    final updated = CourseModel(
-      name: _courses[index].name,
-      code: _courses[index].code,
-      semester: _courses[index].semester,
+    final normalizedCode = code.trim().toUpperCase();
+    final snapshot = await _courses
+        .where('code', isEqualTo: normalizedCode)
+        .limit(1)
+        .get();
+    if (snapshot.docs.isEmpty) {
+      throw FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'not-found',
+        message: 'Course not found.',
+      );
+    }
+    final document = snapshot.docs.single;
+    await document.reference.update({
+      'isSuspended': isSuspended,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    final updated = await document.reference.get();
+    final data = updated.data();
+    if (data == null) throw StateError('The course is missing.');
+    return CourseModel(
+      id: updated.id,
+      name: (data['name'] as String?)?.trim() ?? '',
+      code: (data['code'] as String?)?.trim().toUpperCase() ?? normalizedCode,
+      semester: (data['semester'] as String?)?.trim() ?? '',
       isSuspended: isSuspended,
     );
-    _courses[index] = updated;
-    return updated;
   }
 
   @override
   Future<void> deleteCourse({required String code}) async {
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    _courses.removeWhere(
-      (course) => course.code.toUpperCase() == code.toUpperCase(),
-    );
+    final normalizedCode = code.trim().toUpperCase();
+    final snapshot = await _courses
+        .where('code', isEqualTo: normalizedCode)
+        .limit(1)
+        .get();
+    if (snapshot.docs.isEmpty) return;
+    await snapshot.docs.single.reference.delete();
   }
 }

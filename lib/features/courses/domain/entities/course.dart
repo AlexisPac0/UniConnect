@@ -2,12 +2,14 @@ import 'package:equatable/equatable.dart';
 
 class Course extends Equatable {
   const Course({
+    this.id,
     required this.name,
     required this.code,
     required this.semester,
     this.isSuspended = false,
   });
 
+  final String? id;
   final String name;
   final String code;
   final String semester;

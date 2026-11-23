@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uniconnect/app.dart';
@@ -6,6 +7,7 @@ import 'package:uniconnect/features/profile/presentation/session/session_control
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   configureDependencies();
   getIt<SessionController>().start();
   runApp(UniConnectApp(router: getIt<GoRouter>()));
