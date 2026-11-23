@@ -83,6 +83,7 @@ void _registerProfileFeature() {
       () => SessionController(
         watchAuthState: getIt(),
         getUserProfile: getIt(),
+        signOut: getIt(),
         session: getIt(),
       ),
       dispose: (controller) => controller.dispose(),
