@@ -1,0 +1,47 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "lectures",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "courseId", "order": "ASCENDING" },
+        { "fieldPath": "startTime", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "lectures",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "professorId", "order": "ASCENDING" },
+        { "fieldPath": "startTime", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "attendance_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "courseId", "order": "ASCENDING" },
+        { "fieldPath": "sessionId", "order": "ASCENDING" },
+        { "fieldPath": "checkInTime", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "attendance_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "studentId", "order": "ASCENDING" },
+        { "fieldPath": "courseId", "order": "ASCENDING" },
+        { "fieldPath": "checkInTime", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "attendance_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "courseId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
