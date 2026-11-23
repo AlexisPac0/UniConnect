@@ -103,8 +103,10 @@ branch name pattern to `main` and configure:
 
 The **Repository conventions** workflow runs on pull requests targeting
 `main` and pushes to `main`, not on pushes to other branches. After its first
-run, enable **Require status checks to pass before merging** and select both
-**Branch naming** and **Commit conventions** (GitHub Actions as the source).
+run, enable **Require status checks to pass before merging** and select
+**Branch naming**, **Commit conventions**, **Flutter analyze**, and
+**Flutter test** (GitHub Actions as the source). Run both workflows first
+so all four checks are available to select.
 These settings are required to block merges when a policy check fails;
 adding the workflow alone does not enable branch protection.
 
@@ -132,8 +134,14 @@ Run the policy validator tests locally with Node.js 20 or newer:
 node --test .github/scripts/check-conventions.test.mjs
 ```
 
-Flutter analysis and tests are not yet automated by this workflow. Run them
-locally and record the results in the PR until their CI checks are added.
+The **Flutter CI** workflow runs on the same PR and push events. It installs
+the latest stable Flutter SDK and dependencies, then runs `flutter analyze`
+and `flutter test` as independent checks on Linux. An analysis failure does
+not cancel the tests. `flutter test` runs the full `test/` suite, including
+unit, widget, and architecture tests; no emulator is required.
+The SDK version is printed in each job's log. CI follows the stable channel
+rather than pinning an SDK release. Continue running both checks locally
+before opening a PR.
 
 After saving, verify that the rule targets `main` and that GitHub shows the
 approval requirement on a pull request. SCRUM-17 is not complete until this
