@@ -52,11 +52,14 @@ class SessionController {
   }
 
   /// Stops listening. Results of profile loads still running are ignored.
-  Future<void> dispose() async {
+  ///
+  /// Synchronous, like `ChangeNotifier.dispose`: the cancellation is not
+  /// awaited, since nothing can be emitted after [_generation] changed. This
+  /// also lets widget tests dispose it inside their fake async zone.
+  void dispose() {
     _generation++;
-    final subscription = _subscription;
+    unawaited(_subscription?.cancel());
     _subscription = null;
-    await subscription?.cancel();
   }
 
   Future<void> _onAuthStateChanged(AuthUser? user) async {

@@ -12,10 +12,14 @@ import 'package:uniconnect/core/session/role_access_policy.dart';
 import 'package:uniconnect/core/session/user_role.dart';
 import 'package:uniconnect/core/widgets/placeholder_page.dart';
 import 'package:uniconnect/core/widgets/splash_page.dart';
+import 'package:uniconnect/features/auth/presentation/cubit/sign_out_cubit.dart';
 import 'package:uniconnect/features/home/presentation/cubit/home_cubit.dart';
 import 'package:uniconnect/features/home/presentation/pages/home_page.dart';
 
 class MockHomeCubit extends MockCubit<HomeState> implements HomeCubit {}
+
+class MockSignOutCubit extends MockCubit<SignOutState>
+    implements SignOutCubit {}
 
 AppSession signedInAs(UserRole role) {
   return AppSession(
@@ -208,6 +212,9 @@ void main() {
       when(() => cubit.state).thenReturn(const HomeLoaded([]));
       when(() => cubit.load(any())).thenAnswer((_) async {});
       getIt.registerFactory<HomeCubit>(() => cubit);
+      final signOutCubit = MockSignOutCubit();
+      when(() => signOutCubit.state).thenReturn(const SignOutIdle());
+      getIt.registerFactory<SignOutCubit>(() => signOutCubit);
     });
 
     tearDown(() => getIt.reset());

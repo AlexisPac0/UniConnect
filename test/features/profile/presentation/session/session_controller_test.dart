@@ -64,7 +64,7 @@ void main() {
   });
 
   tearDown(() async {
-    await controller.dispose();
+    controller.dispose();
     await auth.close();
     session.dispose();
   });
@@ -330,7 +330,7 @@ void main() {
     controller.start();
     expect(auth.hasListener, isTrue);
 
-    await controller.dispose();
+    controller.dispose();
 
     expect(auth.hasListener, isFalse);
     await emit(null);
@@ -343,7 +343,7 @@ void main() {
     controller.start();
     await emit(tAuthUser);
 
-    await controller.dispose();
+    controller.dispose();
     profile.complete(const Success(tStudentProfile));
     await flush();
 
