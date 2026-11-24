@@ -1,53 +1,21 @@
 # UniConnect
 
-UniConnect is a Flutter mobile app for university students, professors and
-administrators, targeting Android and iOS. Its planned modules are **Timetable**
-(courses, personal schedules and change notifications) and **Attendance**
-(QR-code and geolocation check-in, with attendance statistics).
+Flutter app (Android and iOS) for university students, professors and
+administrators: **timetable** (courses, lectures, change notifications) and
+**attendance** (QR code and location check-in, statistics). Backend:
+Firebase (Auth, Firestore).
 
-## Current status
+## Prerequisites
 
-The project currently provides the application foundation: layered architecture,
-role-based navigation and a reference home feature backed by in-memory data.
-Other screens are placeholders. The session comes from Firebase Authentication,
-and the role of the user from their profile in Cloud Firestore
-(`users/{id}`). Cloud Messaging is planned but **not integrated yet**.
+- **Flutter 3.44.0** (stable), the version used by CI.
+- **Java 17** for the Android build. The Java 25 bundled with recent Android
+  Studio is too new for Gradle; point Flutter to a JDK 17 with
+  `flutter config --jdk-dir=<path-to-jdk-17>`.
+- An Android emulator or device (iOS needs macOS and Xcode).
+- Only for the seed script and the Firestore rules tests: Node.js 20+
+  (plus Java 21 for the rules tests, which run the Firestore emulator).
 
-The login screen is not available yet: a signed-out user stays on the login
-placeholder.
-
-| Concern | Choice |
-| --- | --- |
-| UI | Flutter (Material 3) |
-| State management | [`flutter_bloc`](https://pub.dev/packages/flutter_bloc) (Cubit) |
-| Navigation | [`go_router`](https://pub.dev/packages/go_router) |
-| Dependency injection | [`get_it`](https://pub.dev/packages/get_it) |
-| Value equality | [`equatable`](https://pub.dev/packages/equatable) |
-| Tests | `flutter_test`, [`mocktail`](https://pub.dev/packages/mocktail), [`bloc_test`](https://pub.dev/packages/bloc_test) |
-| Backend | Firebase via FlutterFire: Authentication, Cloud Firestore, Cloud Functions, Cloud Messaging |
-
-## Getting started
-
-### Prerequisites
-
-
-- Git and the [Flutter SDK](https://docs.flutter.dev/install), available on your
-  command line. Use **Flutter 3.44.0 stable**, matching CI. The
-  current dependency lockfile requires **Dart 3.11 or newer** (Dart is bundled
-  with Flutter).
-- For Android: Android Studio with the Android SDK and an emulator, or an
-  Android device with USB debugging enabled.
-- For iOS: macOS with Xcode and an iOS simulator or configured physical device.
-  Follow the [Flutter iOS setup guide](https://docs.flutter.dev/platform-integration/ios/setup).
-
-Check your installation and resolve issues for your target platform:
-
-```bash
-flutter --version
-flutter doctor
-```
-
-### Install and run
+## Run the app
 
 ```bash
 git clone https://github.com/AlexisPac0/UniConnect.git
@@ -55,56 +23,50 @@ cd UniConnect
 flutter pub get
 ```
 
-Start an Android emulator from Android Studio's Device Manager, or an iOS
-simulator from Xcode on macOS. Alternatively, connect a configured device.
+Get `google-services.json` for the Android app `hr.foi.uniconnect` (Firebase
+console, project `uniconnect-910ca`, or ask the team) and put it in
+`android/app/`. It is ignored by git: never commit it. On iOS, the
+equivalent is `ios/Runner/GoogleService-Info.plist`.
 
 ```bash
-flutter devices
-flutter run
+flutter run            # or flutter run -d <device-id>
 ```
 
-If several devices are available, select one with
-`flutter run -d <device-id>`, using an ID from `flutter devices`.
-The app opens on a splash screen, then the login screen or the home of the
-signed-in user's role.
+## Demo accounts
 
-### Checks
+There is no sign-up screen: accounts are created by an administrator. The
+demo accounts (1 admin, 3 professors, 6 students, `@uniconnect.test`) are
+created by `scripts/seed-users.mjs`, with a service account key
+(Firebase console > Project settings > Service accounts) saved as
+`service-account.json` at the root (ignored by git):
 
-Run these from the repository root before opening a pull request:
+```bash
+npm ci
+GOOGLE_APPLICATION_CREDENTIALS=./service-account.json \
+SEED_PASSWORD='<demo password>' ADMIN_SEED_PASSWORD='<admin password>' \
+npm run seed:users -- --prod
+```
+
+Both passwords need 12+ characters and must differ. Share them privately,
+never in the repository.
+
+## Checks
+
+Run before opening a pull request (CI runs the same):
 
 ```bash
 flutter analyze
 flutter test
+npm run test:rules   # only if firestore.rules changed
 ```
 
-If no device is listed, start an emulator or check the device connection and
-rerun `flutter doctor`. For SDK or dependency errors, check `flutter --version`
-against the project constraints before retrying `flutter pub get`.
+## Documentation
 
-## Tech stack
-
-| Concern | Choice |
-| --- | --- |
-| UI | Flutter / Material 3 |
-| State management | flutter_bloc / Cubit |
-| Navigation | go_router |
-| Dependency injection | get_it |
-| Value equality | equatable |
-| Tests | flutter_test, mocktail, bloc_test |
-| Backend (planned) | Firebase |
-
-## Documentation and contributing
-
-- [Architecture](docs/architecture.md): layers, data flow, roles and project structure.
-- [Component architecture](docs/architecture/component-architecture.md) and [PlantUML component diagram](docs/uml/component-diagram.puml).
-- [Domain model class diagram](docs/architecture/domain-model-class-diagram.md) and [PlantUML domain class diagram](docs/uml/domain-class-diagram.puml).
-- [Firestore data model](docs/firestore-data-model.md).
-- [Contributing](CONTRIBUTING.md): Git workflow, checks and adding a feature.
-- [Use cases](docs/uml/use-case-descriptions.md).
-- [Use-case diagram](docs/uml/usecase.png) and [PlantUML source](docs/uml/usecase.puml).
-- [Jira project](https://uniconnecterasmus.atlassian.net).
-
-Create a branch named `feature/SCRUM-xx-short-description` from an up-to-date
-`main`. Use English commits prefixed with the Jira key, and open a pull request
-to `main` for at least one approval. See the contributing guide for the full
-workflow and branch-protection setup.
+- [Contributing](CONTRIBUTING.md): branches, commits, pull requests, adding a feature.
+- [Architecture](docs/architecture.md): layers, roles, session, tech stack.
+- Specifications: [use cases](docs/specs/use-cases.md),
+  [domain model](docs/specs/domain-model.md),
+  [components](docs/specs/component-architecture.md),
+  [Firestore data model](docs/specs/firestore-data-model.md).
+  PlantUML sources are in [`docs/uml`](docs/uml).
+- [Jira](https://uniconnecterasmus.atlassian.net)

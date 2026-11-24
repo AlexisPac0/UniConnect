@@ -2,7 +2,7 @@ rules_version = '2';
 
 // UniConnect - Cloud Firestore security rules (SCRUM-29).
 //
-// Schema: docs/firestore-data-model.md. Everything is denied unless a rule
+// Schema: docs/specs/firestore-data-model.md. Everything is denied unless a rule
 // below allows it. Cloud Functions use the Admin SDK and bypass these rules
 // (check-in creation, notifications, counters).
 //
