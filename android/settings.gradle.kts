@@ -22,7 +22,7 @@ plugins {
     id("com.android.application") version "8.9.1" apply false
     // Reads android/app/google-services.json (not committed, see README).
     id("com.google.gms.google-services") version "4.5.0" apply false
-    id("org.jetbrains.kotlin.android") version "2.1.0" apply false
+    id("org.jetbrains.kotlin.android") version "2.3.21" apply false
 }
 
 include(":app")
