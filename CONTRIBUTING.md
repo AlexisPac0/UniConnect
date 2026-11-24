@@ -22,6 +22,11 @@ working on the project.
 - **Code style**: lints are defined in `analysis_options.yaml`
   (`flutter_lints` plus single quotes, const constructors, final locals,
   explicit return types, ordered directives, no `print`).
+- **UI**: never hardcode colours, text styles or spacing. Use the theme
+  (`context.colors`, `context.textStyles`, `context.semanticColors`) and the
+  `AppSpacing` / `AppRadius` / `AppSizes` tokens from `core/theme`, and the
+  shared widgets from `core/widgets` (`AppButton`, `AppCard`, `AppLoader`,
+  `EmptyState`, `ErrorState`). See the debug-only UI gallery.
 - **Imports**: use `package:uniconnect/...` imports.
 - **Tests**: the `test/` tree mirrors `lib/`. Every use case, repository and
   cubit has unit tests; every page has a widget test using a mocked cubit.

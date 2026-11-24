@@ -57,6 +57,4 @@ service-account*.json
 .env
 .env.*
 latest
-
-# Node.js tooling for the Firestore rules tests (SCRUM-29)
-node_modules/
+node_modules
