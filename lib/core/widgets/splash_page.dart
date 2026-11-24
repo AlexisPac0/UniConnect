@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:uniconnect/core/theme/theme.dart';
+import 'package:uniconnect/core/widgets/app_loader.dart';
 
 /// Screen shown while the app does not know yet who is signed in.
 class SplashPage extends StatelessWidget {
@@ -6,21 +8,20 @@ class SplashPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Scaffold(
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.school_outlined, size: 72, color: colorScheme.primary),
-            const SizedBox(height: 16),
-            Text(
-              'UniConnect',
-              style: Theme.of(context).textTheme.headlineMedium,
+            Icon(
+              Icons.school_outlined,
+              size: AppSizes.iconXl,
+              color: context.colors.primary,
             ),
-            const SizedBox(height: 32),
-            const CircularProgressIndicator(),
+            const SizedBox(height: AppSpacing.md),
+            Text('UniConnect', style: context.textStyles.headlineMedium),
+            const SizedBox(height: AppSpacing.xl),
+            const AppLoader(),
           ],
         ),
       ),

@@ -1,9 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uniconnect/core/di/injection.dart';
 import 'package:uniconnect/core/router/app_routes.dart';
 import 'package:uniconnect/core/session/user_role.dart';
+import 'package:uniconnect/core/theme/theme.dart';
+import 'package:uniconnect/core/widgets/widgets.dart';
 import 'package:uniconnect/features/auth/presentation/widgets/sign_out_button.dart';
 import 'package:uniconnect/features/home/domain/entities/welcome_item.dart';
 import 'package:uniconnect/features/home/presentation/cubit/home_cubit.dart';
@@ -37,6 +40,12 @@ class HomeView extends StatelessWidget {
       appBar: AppBar(
         title: const Text('UniConnect'),
         actions: [
+          if (kDebugMode)
+            IconButton(
+              tooltip: 'UI gallery',
+              icon: const Icon(Icons.palette_outlined),
+              onPressed: () => context.push(AppRoutes.uiGallery),
+            ),
           IconButton(
             tooltip: 'Settings',
             icon: const Icon(Icons.settings_outlined),
@@ -48,24 +57,24 @@ class HomeView extends StatelessWidget {
       body: BlocBuilder<HomeCubit, HomeState>(
         builder: (context, state) {
           return switch (state) {
-            HomeLoading() => const Center(child: CircularProgressIndicator()),
-            HomeError(:final message) => _ErrorView(
+            HomeLoading() => const AppLoader(),
+            HomeError(:final message) => ErrorState(
               message: message,
               onRetry: () => context.read<HomeCubit>().load(role),
             ),
             HomeLoaded(:final items) => ListView(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               children: [
                 Text(
                   'Welcome to UniConnect',
-                  style: Theme.of(context).textTheme.headlineMedium,
+                  style: context.textStyles.headlineMedium,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.sm),
                 Text(
                   '${role.label} space',
-                  style: Theme.of(context).textTheme.bodyLarge,
+                  style: context.textStyles.bodyLarge,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppSpacing.lg),
                 for (final item in items)
                   WelcomeItemCard(
                     item: item,
@@ -89,28 +98,4 @@ String _routeFor(WelcomeAction action) {
     WelcomeAction.attendanceDashboard => AppRoutes.attendanceDashboard,
     WelcomeAction.manageCourses => AppRoutes.courses,
   };
-}
-
-class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            FilledButton(onPressed: onRetry, child: const Text('Retry')),
-          ],
-        ),
-      ),
-    );
-  }
 }

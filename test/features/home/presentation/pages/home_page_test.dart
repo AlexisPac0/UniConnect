@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:uniconnect/core/di/injection.dart';
 import 'package:uniconnect/core/session/user_role.dart';
+import 'package:uniconnect/core/widgets/widgets.dart';
 import 'package:uniconnect/features/auth/presentation/cubit/sign_out_cubit.dart';
 import 'package:uniconnect/features/auth/presentation/widgets/sign_out_button.dart';
 import 'package:uniconnect/features/home/presentation/cubit/home_cubit.dart';
@@ -49,7 +50,7 @@ void main() {
   testWidgets('shows a progress indicator while loading', (tester) async {
     await pumpHomeView(tester, const HomeLoading());
 
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(AppLoader), findsOneWidget);
     expect(find.byType(WelcomeItemCard), findsNothing);
   });
 
@@ -82,6 +83,7 @@ void main() {
   testWidgets('shows the error and retries on tap', (tester) async {
     await pumpHomeView(tester, const HomeError('Could not load'));
 
+    expect(find.byType(ErrorState), findsOneWidget);
     expect(find.text('Could not load'), findsOneWidget);
 
     await tester.tap(find.text('Retry'));
