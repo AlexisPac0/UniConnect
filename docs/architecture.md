@@ -1,62 +1,60 @@
 # Architecture
 
-[README](../README.md) · [Contributing](../CONTRIBUTING.md)
+## Tech stack
 
-The code is organised **by feature**, and every feature is split into three
-layers:
+| Concern | Choice |
+| --- | --- |
+| UI | Flutter, Material 3 |
+| State management | `flutter_bloc` (Cubit) |
+| Navigation | `go_router` |
+| Dependency injection | `get_it` |
+| Backend | Firebase Auth, Cloud Firestore (Cloud Functions and Messaging planned) |
+| Tests | `flutter_test`, `mocktail`, `bloc_test` |
 
-```
-lib/features/<feature>/
-├── domain/        # Pure Dart: entities, repository interfaces, use cases
-├── data/          # Repository implementations, data sources, models
-└── presentation/  # Pages, widgets, cubits
-```
-
-### Layer rules
-
-1. **domain** is pure Dart. It never imports Flutter, Firebase, `data` or
-   `presentation`. It contains entities, `abstract` repository interfaces and
-   use cases (`UseCase<T, Params>`).
-2. **data** implements the domain repositories (with data sources and models)
-   and depends only on `domain` (and `core`).
-3. **presentation** contains pages, widgets and cubits. It depends on `domain`
-   only and **never** imports `data`.
-4. Dependencies are injected with **get_it**, and every registration lives in
-   `lib/core/di/injection.dart`. `core/di` and `core/router` are the
-   composition root: the only places allowed to wire features together.
-5. Errors are values: repositories and use cases return `Result<T>`
-   (`Success` / `Failure`, a sealed class in `core/result`). Repositories catch
-   every exception and return a `Failure` holding an `AppFailure`
-   (`core/error`). **No exception ever reaches the UI.**
-6. Navigation always uses the constants of `AppRoutes`. Screens that are not
-   implemented yet point to `PlaceholderPage`.
-
-Rules 1 to 3 are checked automatically by
-`test/architecture/layer_dependencies_test.dart`: `flutter test` fails if a
-layer imports a forbidden one.
-
-The `home` feature is the **reference implementation**: copy its structure
-for new features.
-
-### Data flow
+## Structure
 
 ```
-HomePage ──BlocProvider──▶ HomeCubit ──▶ GetWelcomeItems ──▶ HomeRepository (interface)
-                                                                    ▲
-                                              HomeRepositoryImpl ───┘ ──▶ HomeDataSource
+lib/
+├── main.dart, app.dart
+├── core/          # Shared code, never imports a feature
+│   ├── di/        # get_it registrations (composition root)
+│   ├── router/    # GoRouter, AppRoutes, role-based redirect
+│   ├── session/   # AppSession, UserRole, RoleAccessPolicy
+│   ├── result/    # Result<T>: Success / Failure
+│   ├── error/     # AppFailure
+│   ├── usecase/   # UseCase<T, Params>
+│   ├── theme/     # Design system (colours, typography, spacing)
+│   ├── widgets/   # Shared widgets (AppButton, AppCard, ...)
+│   └── dev/       # Debug-only UI gallery
+└── features/<feature>/
+    ├── domain/        # Pure Dart: entities, repository interfaces, use cases
+    ├── data/          # Repository implementations, data sources, models
+    └── presentation/  # Pages, widgets, cubits
+test/                  # Mirrors lib/
 ```
 
-### Roles and navigation
+Features: `auth` (sign in, sign out), `profile` (user profile, session),
+`home` (reference feature, copy its structure).
 
-`UserRole` (`student`, `professor`, `admin`) is defined in `core/session`. The
-router `redirect` sends the app to `/splash` while the session is loading,
-signed-out users to `/login`, and each role to its own home (`/student`,
-`/professor`, `/admin`).
+## Layer rules
 
-Access rules live in `core/session`: `RoleAccessPolicy` lists the
-`AppFeature`s of each role, and `AppRoutes.featureFor` maps every screen to
-its feature. A signed-in user who opens a screen of another role is sent back
-to their own home.
+1. **domain** is pure Dart: no Flutter, Firebase, `data` or `presentation`.
+2. **data** implements the domain repositories and depends only on `domain`
+   and `core`.
+3. **presentation** depends on `domain` only, never on `data`.
+4. Only `core/di` and `core/router` wire features together.
+5. Errors are values: repositories catch every exception and return a
+   `Failure` holding an `AppFailure`. No exception reaches the UI.
+6. Navigation uses the `AppRoutes` constants. Screens not built yet show
+   `PlaceholderPage`.
+
+Rules 1 to 3 are checked by `test/architecture/layer_dependencies_test.dart`.
+
+## Roles and navigation
+
+The router sends the app to `/splash` while the session loads, signed-out
+users to `/login`, and each role to its home (`/student`, `/professor`,
+`/admin`). A user who opens a screen of another role goes back to their home.
 
 | Feature | Routes | Student | Professor | Admin |
 | --- | --- | :-: | :-: | :-: |
@@ -68,114 +66,32 @@ to their own home.
 | `courseManagement` | `/courses/**` | | | ✓ |
 | `settings` | `/settings` | ✓ | ✓ | ✓ |
 
-### Session flow
+Defined in `core/session/role_access_policy.dart` and `AppRoutes.featureFor`.
+
+## Session
 
 ```
-Firebase Auth ──▶ WatchAuthState ──▶ SessionController ──▶ GetUserProfile (users/{id})
-                                            │
-                                            ▼
-                                       AppSession ──refreshListenable──▶ GoRouter redirect
+Firebase Auth ──▶ SessionController ──▶ GetUserProfile (users/{uid})
+                         │
+                         ▼
+                    AppSession ──▶ GoRouter redirect
 ```
 
-`AppSession` (`core/session`) holds the session state: `loading`, `signedOut`
-(with an optional error message) or `signedIn` (user id, role, display name).
-`SessionController` (`profile/presentation/session`) is started by `main`. It
-listens to Firebase Auth: nobody signed in gives `signedOut`; a signed-in user
-gives `loading`, then `signedIn` with the role of their profile, or
-`signedOut` with the failure message when the profile is missing or its role
-is invalid. If the user changes while a profile loads, the outdated result is
-ignored. `core` never imports a feature: it only knows `AppSession`.
+`SessionController` listens to Firebase Auth and sets `AppSession` to
+`loading`, `signedIn` (id, role, name) or `signedOut` (with an optional
+error message).
 
-The three ways a session starts or ends:
-
-- **Restored at startup.** Firebase Auth keeps the user signed in on the
-  device and `authStateChanges()` emits them as its first event. The app
-  opens on `/splash` (`loading`), loads the profile, then goes to the home of
-  the role. Nothing else is needed: it is the same path as a new sign-in.
-- **Log out.** The `SignOutButton` (in the home `AppBar`) asks for a
-  confirmation, then calls `SignOutCubit` → `SignOut` →
-  `FirebaseAuth.signOut()`. It never navigates: Firebase Auth emits `null`,
-  `SessionController` sets `signedOut`, and the router redirects to `/login`.
-  If signing out fails, a `SnackBar` shows the message and the user stays
-  signed in.
-- **Forced sign-out.** When the profile cannot be loaded (missing document,
-  invalid role...), `SessionController` sets `signedOut` with the failure
-  message, then calls `SignOut` so that the user does not stay signed in to
-  Firebase without being able to use the app. The `null` that Firebase emits
-  next keeps the message, so the login screen can display it. If `SignOut`
-  fails, the session stays `signedOut` and it is not retried.
+- **Restored at startup:** Firebase Auth keeps the user signed in; the app
+  loads the profile and opens the home of the role.
+- **Log out:** the button of the home asks for confirmation and signs out of
+  Firebase; the router then redirects to `/login`.
+- **Forced sign-out:** if the profile is missing or invalid, the user is
+  signed out and the login screen shows why.
 
 ## Design system
 
-`core/theme` is the single source of truth for the look of the app. Colours
-come from `context.colors` (Material 3 `ColorScheme`) and
-`context.semanticColors` (success, warning, error, info), text styles from
-`context.textStyles`, and spacing, radius and sizes from the `AppSpacing`,
-`AppRadius` and `AppSizes` constants. The app follows the system light/dark
-setting. Screens use the shared widgets of `core/widgets` (`AppButton`,
-`AppCard`, `AppLoader`, `EmptyState`, `ErrorState`) instead of building their
-own. In debug builds, the palette button of the home opens a UI gallery
-showing every token and widget variant in both themes.
-
-## Project structure
-
-```
-lib/
-├── app.dart                      # MaterialApp.router
-├── main.dart                     # configureDependencies() + runApp
-├── core/
-│   ├── di/injection.dart         # get_it registrations (all features)
-│   ├── error/failure.dart        # AppFailure hierarchy
-│   ├── result/result.dart        # Result<T>: Success / Failure
-│   ├── router/
-│   │   ├── app_router.dart       # GoRouter + role-based redirect
-│   │   └── app_routes.dart       # Route path constants
-│   ├── session/
-│   │   ├── app_feature.dart      # Features guarded by role
-│   │   ├── app_session.dart      # loading / signedOut / signedIn
-│   │   ├── role_access_policy.dart # Features allowed per role
-│   │   └── user_role.dart        # student / professor / admin
-│   ├── dev/ui_gallery_page.dart  # Debug-only catalogue of tokens/widgets
-│   ├── theme/                    # Design system (import theme.dart)
-│   │   ├── app_colors.dart       # ColorSchemes + AppSemanticColors
-│   │   ├── app_typography.dart   # Type scale (TextTheme)
-│   │   ├── app_spacing.dart      # Spacing, radius, elevation, sizes
-│   │   ├── app_theme.dart        # Light/dark ThemeData + component themes
-│   │   └── theme_context.dart    # context.colors / textStyles / semanticColors
-│   ├── usecase/usecase.dart      # UseCase<T, Params>, NoParams
-│   └── widgets/                  # Shared widgets (import widgets.dart)
-│       ├── app_button.dart       # AppButton: variants, sizes, loading
-│       ├── app_card.dart
-│       ├── app_loader.dart       # AppLoader, AppLoadingOverlay, AppSkeleton
-│       ├── empty_state.dart
-│       ├── error_state.dart
-│       ├── placeholder_page.dart
-│       └── splash_page.dart
-└── features/
-    └── home/                     # Reference feature
-        ├── data/
-        │   ├── datasources/home_data_source.dart
-        │   ├── models/welcome_item_model.dart
-        │   └── repositories/home_repository_impl.dart
-        ├── domain/
-        │   ├── entities/welcome_item.dart
-        │   ├── repositories/home_repository.dart
-        │   └── usecases/get_welcome_items.dart
-        └── presentation/
-            ├── cubit/home_cubit.dart, home_state.dart
-            ├── pages/home_page.dart
-            └── widgets/welcome_item_card.dart
-
-test/                             # Mirrors lib/
-├── app_test.dart                 # Smoke tests with the real DI graph
-├── architecture/layer_dependencies_test.dart
-├── core/
-└── features/home/{domain,data,presentation}/
-```
-
-## Architectural specifications and diagrams
-
-- [Component architecture specification](architecture/component-architecture.md) (SCRUM-22)
-- [Domain model class diagram](architecture/domain-model-class-diagram.md) (SCRUM-20)
-- [Firestore data model](firestore-data-model.md) (SCRUM-23)
-
+`core/theme` is the single source for colours (`context.colors`,
+`context.semanticColors`), text styles (`context.textStyles`) and spacing
+(`AppSpacing`, `AppRadius`, `AppSizes`). The app follows the system
+light/dark setting. In debug builds, the palette button of the home opens a
+gallery of every token and widget.

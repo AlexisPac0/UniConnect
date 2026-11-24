@@ -1,6 +1,11 @@
-# Use case descriptions (Timetable and Attendance modules)
+# Use cases (SCRUM-19)
 
-Source: acceptance criteria of the Jira stories SCRUM-30 to SCRUM-44. Actors: Student, Professor, Administrator.
+Source: acceptance criteria of the Jira stories SCRUM-30 to SCRUM-44.
+Actors: Student, Professor, Administrator.
+
+![Use case diagram](../uml/usecase.png)
+
+Source of the diagram: [`usecase.puml`](../uml/usecase.puml).
 
 ## Timetable module
 

@@ -1,5 +1,5 @@
 // Seeds the UniConnect demo accounts: one Firebase Auth user and one
-// users/{uid} profile per person (schema: docs/firestore-data-model.md §3.1).
+// users/{uid} profile per person (schema: docs/specs/firestore-data-model.md).
 //
 // Uses the Admin SDK, which bypasses firestore.rules: this is how the first
 // admin gets created. Safe to run again: existing accounts are reused and
