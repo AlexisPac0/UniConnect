@@ -1,0 +1,362 @@
+rules_version = '2';
+
+// UniConnect - Cloud Firestore security rules (SCRUM-29).
+//
+// Schema: docs/firestore-data-model.md. Everything is denied unless a rule
+// below allows it. Cloud Functions use the Admin SDK and bypass these rules
+// (check-in creation, notifications, counters).
+//
+// Role model: the role is the `role` field of users/{uid}, written only by
+// admins. Reading it costs one get() per request; Firestore caches repeated
+// get()/exists() calls on the same document within a request.
+//
+// Rules are not filters: every list query must be constrained so that the
+// conditions below can be proved from the query itself, e.g. lectures
+// `where('courseId', '==', id)` or `where('professorId', '==', uid)`.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------------------------------------------------------- helpers
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function docPath(collection, id) {
+      return /databases/$(database)/documents/$(collection)/$(id);
+    }
+
+    // Role of the caller. Fails (denies) when the user has no profile.
+    function role() {
+      return get(docPath('users', request.auth.uid)).data.role;
+    }
+
+    function isStudent() {
+      return isSignedIn() && role() == 'student';
+    }
+
+    function isProfessor() {
+      return isSignedIn() && role() == 'professor';
+    }
+
+    function isAdmin() {
+      return isSignedIn() && role() == 'admin';
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Enrolment documents use the id {studentId}_{courseId}: one exists().
+    function studentIsEnrolled(studentId, courseId) {
+      return exists(docPath('enrolments', studentId + '_' + courseId));
+    }
+
+    function isEnrolled(courseId) {
+      return isStudent() && studentIsEnrolled(request.auth.uid, courseId);
+    }
+
+    function courseData(courseId) {
+      return get(docPath('courses', courseId)).data;
+    }
+
+    function teachesCourse(courseId) {
+      return isProfessor()
+        && request.auth.uid in courseData(courseId).professorIds;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    function isNonEmptyString(value) {
+      return value is string && value.size() > 0;
+    }
+
+    // Optional field: absent, null, or of the expected type.
+    function optString(data, key) {
+      return !(key in data) || data[key] == null || data[key] is string;
+    }
+
+    function optTimestamp(data, key) {
+      return !(key in data) || data[key] == null || data[key] is timestamp;
+    }
+
+    // The optional `id` field mirrors the document id.
+    function idMatches(data, docId) {
+      return !('id' in data) || data.id == docId;
+    }
+
+    // ------------------------------------------------------------------ users
+
+    function isValidUser(data, userId) {
+      return data.keys().hasAll(['email', 'displayName', 'role', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'email', 'displayName', 'role', 'studentNumber',
+                                'department', 'fcmTokens', 'createdAt', 'updatedAt'])
+        && idMatches(data, userId)
+        && isNonEmptyString(data.email)
+        && isNonEmptyString(data.displayName)
+        && data.role in ['student', 'professor', 'admin']
+        && optString(data, 'studentNumber')
+        && optString(data, 'department')
+        && (!('fcmTokens' in data) || data.fcmTokens is list)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /users/{userId} {
+      // Professors see their students through enrolments (denormalised name
+      // and email), not through users/{uid}.
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+
+      allow create: if isAdmin() && isValidUser(incoming(), userId);
+
+      // Owner: device tokens only. Admin: anything valid, except their own
+      // role (no self-demotion or lock-out).
+      allow update: if
+        (isOwner(userId)
+          && changedKeys().hasOnly(['fcmTokens', 'updatedAt'])
+          && (!('fcmTokens' in incoming()) || incoming().fcmTokens is list)
+          && incoming().updatedAt is timestamp)
+        || (isAdmin()
+          && isValidUser(incoming(), userId)
+          && !(isOwner(userId) && changedKeys().hasAny(['role'])));
+
+      allow delete: if isAdmin() && !isOwner(userId);
+    }
+
+    // ---------------------------------------------------------------- courses
+
+    function isValidCourse(data, courseId) {
+      return data.keys().hasAll(['code', 'name', 'semester', 'professorIds',
+                                 'studentCount', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'code', 'name', 'semester', 'professorIds',
+                                'studentCount', 'description', 'createdAt', 'updatedAt'])
+        && idMatches(data, courseId)
+        && isNonEmptyString(data.code)
+        && isNonEmptyString(data.name)
+        && isNonEmptyString(data.semester)
+        && data.professorIds is list
+        && data.studentCount is int && data.studentCount >= 0
+        && optString(data, 'description')
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /courses/{courseId} {
+      // Students: courses they are enrolled in, fetched by id.
+      // Professors: courses they teach (array-contains query allowed).
+      allow get: if isAdmin()
+        || (isSignedIn() && request.auth.uid in resource.data.professorIds)
+        || isEnrolled(courseId);
+      allow list: if isAdmin()
+        || (isSignedIn() && request.auth.uid in resource.data.professorIds);
+
+      allow create, update: if isAdmin() && isValidCourse(incoming(), courseId);
+      allow delete: if isAdmin();
+    }
+
+    // ------------------------------------------------------------- enrolments
+
+    function isValidEnrolment(data, enrolmentId) {
+      return data.keys().hasAll(['studentId', 'courseId', 'studentName', 'studentEmail',
+                                 'courseCode', 'courseName', 'enrolledAt'])
+        && data.keys().hasOnly(['id', 'studentId', 'courseId', 'studentName', 'studentEmail',
+                                'courseCode', 'courseName', 'enrolledAt'])
+        && idMatches(data, enrolmentId)
+        && isNonEmptyString(data.studentId)
+        && isNonEmptyString(data.courseId)
+        && enrolmentId == data.studentId + '_' + data.courseId
+        && exists(docPath('courses', data.courseId))
+        && data.studentName is string
+        && data.studentEmail is string
+        && data.courseCode is string
+        && data.courseName is string
+        && data.enrolledAt is timestamp;
+    }
+
+    match /enrolments/{enrolmentId} {
+      allow read: if isAdmin()
+        || (isSignedIn() && resource.data.studentId == request.auth.uid)
+        || teachesCourse(resource.data.courseId);
+
+      allow create: if isAdmin() && isValidEnrolment(incoming(), enrolmentId);
+      // Who is enrolled where never changes; only the denormalised copies.
+      allow update: if isAdmin()
+        && changedKeys().hasOnly(['studentName', 'studentEmail', 'courseCode', 'courseName'])
+        && isValidEnrolment(incoming(), enrolmentId);
+      allow delete: if isAdmin();
+    }
+
+    // --------------------------------------------------------------- lectures
+
+    function isValidLecture(data, lectureId) {
+      return data.keys().hasAll(['courseId', 'courseCode', 'courseName', 'professorId',
+                                 'professorName', 'room', 'startTime', 'endTime', 'status',
+                                 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'courseId', 'courseCode', 'courseName', 'professorId',
+                                'professorName', 'title', 'room', 'startTime', 'endTime',
+                                'status', 'cancellationReason', 'previousDetails',
+                                'createdAt', 'updatedAt'])
+        && idMatches(data, lectureId)
+        && data.courseCode is string
+        && data.courseName is string
+        && data.professorName is string
+        && optString(data, 'title')
+        && isNonEmptyString(data.room)
+        && data.startTime is timestamp
+        && data.endTime is timestamp
+        && data.endTime > data.startTime
+        && data.status in ['scheduled', 'moved', 'cancelled']
+        && optString(data, 'cancellationReason')
+        && (!('previousDetails' in data) || data.previousDetails == null
+            || data.previousDetails is map)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp
+        // The lecturer must be one of the course's professors.
+        && data.professorId in courseData(data.courseId).professorIds;
+    }
+
+    match /lectures/{lectureId} {
+      // The professorId branch lets the professor timetable query
+      // (where professorId == uid) pass without a courseId filter.
+      allow read: if isAdmin()
+        || (isSignedIn() && resource.data.professorId == request.auth.uid)
+        || teachesCourse(resource.data.courseId)
+        || isEnrolled(resource.data.courseId);
+
+      allow create: if teachesCourse(incoming().courseId)
+        && isValidLecture(incoming(), lectureId);
+
+      // A lecture cannot be moved to another course.
+      allow update: if teachesCourse(resource.data.courseId)
+        && changedKeys().hasOnly(['title', 'room', 'startTime', 'endTime', 'status',
+                                  'cancellationReason', 'previousDetails', 'updatedAt',
+                                  'professorId', 'professorName'])
+        && isValidLecture(incoming(), lectureId);
+
+      allow delete: if teachesCourse(resource.data.courseId);
+    }
+
+    // ---------------------------------------------------- attendance sessions
+
+    function isValidGeofence(geofence) {
+      return geofence is map
+        && geofence.keys().hasAll(['latitude', 'longitude', 'radiusMeters'])
+        && geofence.keys().hasOnly(['latitude', 'longitude', 'radiusMeters'])
+        && geofence.latitude is number
+        && geofence.longitude is number
+        && geofence.radiusMeters is number && geofence.radiusMeters > 0;
+    }
+
+    // The QR seed is NOT a field of the session (students can read sessions):
+    // it lives in attendance_sessions/{id}/private/secret.
+    function isValidSession(data, sessionId) {
+      return data.keys().hasAll(['lectureId', 'courseId', 'professorId', 'status',
+                                 'openedAt', 'tokenRotationIntervalSeconds', 'geofence'])
+        && data.keys().hasOnly(['id', 'lectureId', 'courseId', 'professorId', 'status',
+                                'openedAt', 'closedAt', 'tokenRotationIntervalSeconds',
+                                'geofence'])
+        && idMatches(data, sessionId)
+        && data.status in ['open', 'closed']
+        && data.openedAt is timestamp
+        && optTimestamp(data, 'closedAt')
+        && data.tokenRotationIntervalSeconds is int
+        && data.tokenRotationIntervalSeconds > 0
+        && isValidGeofence(data.geofence);
+    }
+
+    function sessionPath(sessionId) {
+      return docPath('attendance_sessions', sessionId);
+    }
+
+    match /attendance_sessions/{sessionId} {
+      allow read: if isAdmin()
+        || (isSignedIn() && resource.data.professorId == request.auth.uid)
+        || teachesCourse(resource.data.courseId)
+        || isEnrolled(resource.data.courseId);
+
+      // Opened by a professor of the course, for a lecture of that course.
+      allow create: if teachesCourse(incoming().courseId)
+        && isValidSession(incoming(), sessionId)
+        && incoming().professorId == request.auth.uid
+        && incoming().status == 'open'
+        && get(docPath('lectures', incoming().lectureId)).data.courseId
+             == incoming().courseId;
+
+      allow update: if teachesCourse(resource.data.courseId)
+        && changedKeys().hasOnly(['status', 'closedAt', 'tokenRotationIntervalSeconds',
+                                  'geofence'])
+        && isValidSession(incoming(), sessionId);
+
+      allow delete: if teachesCourse(resource.data.courseId);
+
+      // QR token seed: course professors only (and Cloud Functions).
+      match /private/{docId} {
+        allow read, delete: if teachesCourse(get(sessionPath(sessionId)).data.courseId);
+        // getAfter() so the secret can be written in the same batch as the
+        // session that it belongs to.
+        allow create, update: if teachesCourse(getAfter(sessionPath(sessionId)).data.courseId)
+          && docId == 'secret'
+          && incoming().keys().hasOnly(['sessionSecret'])
+          && isNonEmptyString(incoming().sessionSecret);
+      }
+    }
+
+    // ----------------------------------------------------- attendance records
+
+    // QR check-ins are created by the `verifyCheckIn` Cloud Function (Admin
+    // SDK). Clients can only add or correct records manually as professors.
+    function isValidManualRecord(data, recordId) {
+      return data.keys().hasAll(['sessionId', 'lectureId', 'courseId', 'studentId',
+                                 'studentName', 'studentEmail', 'status', 'checkInMethod',
+                                 'checkInTime', 'isManualCorrection',
+                                 'correctedByProfessorId', 'correctedAt'])
+        && data.keys().hasOnly(['id', 'sessionId', 'lectureId', 'courseId', 'studentId',
+                                'studentName', 'studentEmail', 'status', 'checkInMethod',
+                                'checkInTime', 'studentLocation', 'isManualCorrection',
+                                'correctedByProfessorId', 'correctedAt'])
+        && idMatches(data, recordId)
+        && recordId == data.sessionId + '_' + data.studentId
+        && data.studentName is string
+        && data.studentEmail is string
+        && data.status in ['present', 'absent', 'late']
+        && data.checkInMethod == 'manual_professor'
+        && data.checkInTime is timestamp
+        && data.isManualCorrection == true
+        && data.correctedByProfessorId == request.auth.uid
+        && data.correctedAt is timestamp;
+    }
+
+    match /attendance_records/{recordId} {
+      // Professors must filter on courseId (e.g. the live monitor uses
+      // where courseId == c and sessionId == s).
+      allow read: if isAdmin()
+        || (isSignedIn() && resource.data.studentId == request.auth.uid)
+        || teachesCourse(resource.data.courseId);
+
+      allow create: if teachesCourse(incoming().courseId)
+        && isValidManualRecord(incoming(), recordId)
+        && get(sessionPath(incoming().sessionId)).data.courseId == incoming().courseId
+        && get(sessionPath(incoming().sessionId)).data.lectureId == incoming().lectureId
+        && studentIsEnrolled(incoming().studentId, incoming().courseId);
+
+      // Manual correction of an existing record (UC12): flagged as such.
+      allow update: if teachesCourse(resource.data.courseId)
+        && changedKeys().hasOnly(['status', 'isManualCorrection',
+                                  'correctedByProfessorId', 'correctedAt'])
+        && incoming().status in ['present', 'absent', 'late']
+        && incoming().isManualCorrection == true
+        && incoming().correctedByProfessorId == request.auth.uid
+        && incoming().correctedAt is timestamp;
+
+      // No client deletes: attendance history is kept.
+    }
+  }
+}
