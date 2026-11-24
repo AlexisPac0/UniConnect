@@ -10,6 +10,7 @@ import 'package:uniconnect/core/session/user_role.dart';
 import 'package:uniconnect/core/widgets/splash_page.dart';
 import 'package:uniconnect/features/auth/data/datasources/auth_data_source.dart';
 import 'package:uniconnect/features/auth/domain/entities/auth_user.dart';
+import 'package:uniconnect/features/auth/presentation/pages/login_page.dart';
 import 'package:uniconnect/features/profile/data/datasources/user_profile_data_source.dart';
 import 'package:uniconnect/features/profile/data/models/user_profile_model.dart';
 import 'package:uniconnect/features/profile/domain/failures/profile_failures.dart';
@@ -123,7 +124,8 @@ void main() {
     session().setSignedOut();
     await pumpApp(tester);
 
-    expect(find.widgetWithText(AppBar, 'Login'), findsOneWidget);
+    expect(find.byType(LoginPage), findsOneWidget);
+    expect(find.text('Sign in'), findsOneWidget);
   });
 
   testWidgets('a signed-in student starts on the student home', (tester) async {
@@ -214,7 +216,7 @@ void main() {
     ) async {
       await launchApp(tester);
 
-      expect(find.widgetWithText(AppBar, 'Login'), findsOneWidget);
+      expect(find.byType(LoginPage), findsOneWidget);
     });
 
     testWidgets('logging out clears the session and opens the login screen', (
@@ -227,7 +229,7 @@ void main() {
 
       expect(auth.signOutCalls, 1);
       expect(session().state, const SessionSignedOut());
-      expect(find.widgetWithText(AppBar, 'Login'), findsOneWidget);
+      expect(find.byType(LoginPage), findsOneWidget);
       expect(find.text('Student space'), findsNothing);
     });
 
@@ -256,7 +258,8 @@ void main() {
 
       expect(auth.signOutCalls, 1);
       expect(session().errorMessage, const ProfileNotFoundFailure().message);
-      expect(find.widgetWithText(AppBar, 'Login'), findsOneWidget);
+      expect(find.byType(LoginPage), findsOneWidget);
+      expect(find.text(const ProfileNotFoundFailure().message), findsOneWidget);
     });
   });
 }

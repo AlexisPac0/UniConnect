@@ -12,11 +12,15 @@ import 'package:uniconnect/core/session/role_access_policy.dart';
 import 'package:uniconnect/core/session/user_role.dart';
 import 'package:uniconnect/core/widgets/placeholder_page.dart';
 import 'package:uniconnect/core/widgets/splash_page.dart';
+import 'package:uniconnect/features/auth/presentation/cubit/login_cubit.dart';
 import 'package:uniconnect/features/auth/presentation/cubit/sign_out_cubit.dart';
+import 'package:uniconnect/features/auth/presentation/pages/login_page.dart';
 import 'package:uniconnect/features/home/presentation/cubit/home_cubit.dart';
 import 'package:uniconnect/features/home/presentation/pages/home_page.dart';
 
 class MockHomeCubit extends MockCubit<HomeState> implements HomeCubit {}
+
+class MockLoginCubit extends MockCubit<LoginState> implements LoginCubit {}
 
 class MockSignOutCubit extends MockCubit<SignOutState>
     implements SignOutCubit {}
@@ -212,6 +216,11 @@ void main() {
       when(() => cubit.state).thenReturn(const HomeLoaded([]));
       when(() => cubit.load(any())).thenAnswer((_) async {});
       getIt.registerFactory<HomeCubit>(() => cubit);
+
+      final loginCubit = MockLoginCubit();
+      when(() => loginCubit.state).thenReturn(const LoginInitial());
+      getIt.registerFactory<LoginCubit>(() => loginCubit);
+
       final signOutCubit = MockSignOutCubit();
       when(() => signOutCubit.state).thenReturn(const SignOutIdle());
       getIt.registerFactory<SignOutCubit>(() => signOutCubit);
@@ -260,11 +269,22 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('shows the login placeholder when signed out', (tester) async {
+    testWidgets('shows the login screen when signed out', (tester) async {
       final router = await pumpRouter(tester, signedOut());
 
       expect(currentPath(router), AppRoutes.login);
-      expect(find.widgetWithText(AppBar, 'Login'), findsOneWidget);
+      expect(find.byType(LoginPage), findsOneWidget);
+    });
+
+    testWidgets('passes the sign-out reason to the login screen', (
+      tester,
+    ) async {
+      await pumpRouter(
+        tester,
+        AppSession(const SessionSignedOut(errorMessage: 'Profile not found.')),
+      );
+
+      expect(find.text('Profile not found.'), findsOneWidget);
     });
 
     testWidgets('a student cannot open the admin home', (tester) async {
