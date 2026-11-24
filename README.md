@@ -96,6 +96,9 @@ against the project constraints before retrying `flutter pub get`.
 ## Documentation and contributing
 
 - [Architecture](docs/architecture.md): layers, data flow, roles and project structure.
+- [Component architecture](docs/architecture/component-architecture.md) and [PlantUML component diagram](docs/uml/component-diagram.puml).
+- [Domain model class diagram](docs/architecture/domain-model-class-diagram.md) and [PlantUML domain class diagram](docs/uml/domain-class-diagram.puml).
+- [Firestore data model](docs/firestore-data-model.md).
 - [Contributing](CONTRIBUTING.md): Git workflow, checks and adding a feature.
 - [Use cases](docs/uml/use-case-descriptions.md).
 - [Use-case diagram](docs/uml/usecase.png) and [PlantUML source](docs/uml/usecase.puml).

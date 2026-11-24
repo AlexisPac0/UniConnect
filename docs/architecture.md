@@ -149,3 +149,10 @@ test/                             # Mirrors lib/
 ├── core/
 └── features/home/{domain,data,presentation}/
 ```
+
+## Architectural specifications and diagrams
+
+- [Component architecture specification](architecture/component-architecture.md) (SCRUM-22)
+- [Domain model class diagram](architecture/domain-model-class-diagram.md) (SCRUM-20)
+- [Firestore data model](firestore-data-model.md) (SCRUM-23)
+
