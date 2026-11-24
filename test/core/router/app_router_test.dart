@@ -15,6 +15,8 @@ import 'package:uniconnect/core/widgets/splash_page.dart';
 import 'package:uniconnect/features/auth/presentation/cubit/login_cubit.dart';
 import 'package:uniconnect/features/auth/presentation/cubit/sign_out_cubit.dart';
 import 'package:uniconnect/features/auth/presentation/pages/login_page.dart';
+import 'package:uniconnect/features/courses/presentation/cubit/courses_cubit.dart';
+import 'package:uniconnect/features/courses/presentation/pages/courses_page.dart';
 import 'package:uniconnect/features/home/presentation/cubit/home_cubit.dart';
 import 'package:uniconnect/features/home/presentation/pages/home_page.dart';
 
@@ -24,6 +26,9 @@ class MockLoginCubit extends MockCubit<LoginState> implements LoginCubit {}
 
 class MockSignOutCubit extends MockCubit<SignOutState>
     implements SignOutCubit {}
+
+class MockCoursesCubit extends MockCubit<CoursesState>
+    implements CoursesCubit {}
 
 AppSession signedInAs(UserRole role) {
   return AppSession(
@@ -224,6 +229,11 @@ void main() {
       final signOutCubit = MockSignOutCubit();
       when(() => signOutCubit.state).thenReturn(const SignOutIdle());
       getIt.registerFactory<SignOutCubit>(() => signOutCubit);
+
+      final coursesCubit = MockCoursesCubit();
+      when(() => coursesCubit.state).thenReturn(const CoursesLoaded([]));
+      when(coursesCubit.load).thenAnswer((_) async {});
+      getIt.registerFactory<CoursesCubit>(() => coursesCubit);
     });
 
     tearDown(() => getIt.reset());
@@ -338,7 +348,6 @@ void main() {
         UserRole.professor,
       ),
       AppRoutes.myAttendance: ('My attendance', UserRole.student),
-      AppRoutes.courses: ('Courses', UserRole.admin),
       AppRoutes.courseMembersPath('MOB-101'): (
         'Members of MOB-101',
         UserRole.admin,
@@ -357,6 +366,17 @@ void main() {
         expect(find.byType(PlaceholderPage), findsOneWidget);
         expect(find.widgetWithText(AppBar, title), findsOneWidget);
       });
+    });
+
+    testWidgets('an admin opens the course management screen', (tester) async {
+      final router = await pumpRouter(tester, signedInAs(UserRole.admin));
+
+      router.go(AppRoutes.courses);
+      await tester.pumpAndSettle();
+
+      expect(currentPath(router), AppRoutes.courses);
+      expect(find.byType(CoursesPage), findsOneWidget);
+      expect(find.widgetWithText(AppBar, 'Courses'), findsOneWidget);
     });
 
     testWidgets('a student cannot open the courses screen', (tester) async {

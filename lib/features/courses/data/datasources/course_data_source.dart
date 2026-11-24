@@ -1,40 +1,57 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uniconnect/features/courses/data/models/course_model.dart';
 
+/// Thrown when another course already uses the code.
+class CourseCodeTakenException implements Exception {
+  const CourseCodeTakenException(this.code);
+
+  final String code;
+
+  @override
+  String toString() => 'CourseCodeTakenException: "$code" is already used';
+}
+
+/// Low-level access to the courses. Implementations may throw.
 abstract interface class CourseDataSource {
+  /// All the courses, sorted by name.
+  Future<List<CourseModel>> getCourses();
+
+  /// Throws a [CourseCodeTakenException] if [code] is already used.
   Future<CourseModel> createCourse({
     required String name,
     required String code,
     required String semester,
   });
-  Future<List<CourseModel>> getCourses();
-  Future<CourseModel> suspendCourse({
-    required String code,
-    required bool isSuspended,
-  });
-  Future<void> deleteCourse({required String code});
+
+  /// Throws a [CourseCodeTakenException] if another course uses the code.
+  Future<CourseModel> updateCourse(CourseModel course);
+
+  Future<void> deleteCourse(String id);
 }
 
+/// [CourseDataSource] on the Firestore collections `courses` and
+/// `enrolments` (see docs/specs/firestore-data-model.md).
+///
+/// The code is checked with a query before writing: two administrators
+/// saving the same code at the same moment could still both succeed.
 class FirestoreCourseDataSource implements CourseDataSource {
-  FirestoreCourseDataSource([FirebaseFirestore? firestore])
-    : _firestore = firestore;
+  const FirestoreCourseDataSource(this._firestore);
 
-  final FirebaseFirestore? _firestore;
-  FirebaseFirestore get _database => _firestore ?? FirebaseFirestore.instance;
+  static const String collection = 'courses';
+  static const String enrolments = 'enrolments';
+
+  final FirebaseFirestore _firestore;
+
   CollectionReference<Map<String, dynamic>> get _courses =>
-      _database.collection('courses');
+      _firestore.collection(collection);
 
-  CourseModel _fromDocument(
-    QueryDocumentSnapshot<Map<String, dynamic>> document,
-  ) {
-    final data = document.data();
-    return CourseModel(
-      id: document.id,
-      name: (data['name'] as String?)?.trim() ?? '',
-      code: (data['code'] as String?)?.trim().toUpperCase() ?? '',
-      semester: (data['semester'] as String?)?.trim() ?? '',
-      isSuspended: data['isSuspended'] as bool? ?? false,
-    );
+  @override
+  Future<List<CourseModel>> getCourses() async {
+    final snapshot = await _courses.orderBy('name').get();
+    return [
+      for (final document in snapshot.docs)
+        CourseModel.fromMap(document.id, document.data()),
+    ];
   }
 
   @override
@@ -43,90 +60,74 @@ class FirestoreCourseDataSource implements CourseDataSource {
     required String code,
     required String semester,
   }) async {
-    final normalizedCode = code.trim().toUpperCase();
-    final existing = await _courses
-        .where('code', isEqualTo: normalizedCode)
-        .limit(1)
-        .get();
-    if (existing.docs.isNotEmpty) {
-      throw FirebaseException(
-        plugin: 'cloud_firestore',
-        code: 'already-exists',
-        message: 'A course with this code already exists.',
-      );
-    }
-
+    await _checkCodeIsFree(code);
     final now = FieldValue.serverTimestamp();
     final reference = await _courses.add({
-      'code': normalizedCode,
-      'name': name.trim(),
-      'semester': semester.trim(),
-      'isSuspended': false,
+      'code': code,
+      'name': name,
+      'semester': semester,
       'professorIds': <String>[],
       'studentCount': 0,
       'createdAt': now,
       'updatedAt': now,
     });
-    final document = await reference.get();
-    final data = document.data();
-    if (data == null) throw StateError('The created course is missing.');
     return CourseModel(
-      id: document.id,
-      name: (data['name'] as String?)?.trim() ?? name.trim(),
-      code: (data['code'] as String?)?.trim().toUpperCase() ?? normalizedCode,
-      semester: (data['semester'] as String?)?.trim() ?? semester.trim(),
-      isSuspended: data['isSuspended'] as bool? ?? false,
+      id: reference.id,
+      name: name,
+      code: code,
+      semester: semester,
     );
   }
 
+  /// Also updates the copies of the code and name kept in the enrolments of
+  /// the course, in the same batch.
   @override
-  Future<List<CourseModel>> getCourses() async {
-    final snapshot = await _courses.orderBy('name').get();
-    return snapshot.docs.map(_fromDocument).toList();
-  }
-
-  @override
-  Future<CourseModel> suspendCourse({
-    required String code,
-    required bool isSuspended,
-  }) async {
-    final normalizedCode = code.trim().toUpperCase();
-    final snapshot = await _courses
-        .where('code', isEqualTo: normalizedCode)
-        .limit(1)
-        .get();
-    if (snapshot.docs.isEmpty) {
-      throw FirebaseException(
-        plugin: 'cloud_firestore',
-        code: 'not-found',
-        message: 'Course not found.',
-      );
+  Future<CourseModel> updateCourse(CourseModel course) async {
+    await _checkCodeIsFree(course.code, exceptId: course.id);
+    final batch = _firestore.batch()
+      ..update(_courses.doc(course.id), {
+        'code': course.code,
+        'name': course.name,
+        'semester': course.semester,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    for (final enrolment in await _enrolmentsOf(course.id)) {
+      batch.update(enrolment.reference, {
+        'courseCode': course.code,
+        'courseName': course.name,
+      });
     }
-    final document = snapshot.docs.single;
-    await document.reference.update({
-      'isSuspended': isSuspended,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-    final updated = await document.reference.get();
-    final data = updated.data();
-    if (data == null) throw StateError('The course is missing.');
-    return CourseModel(
-      id: updated.id,
-      name: (data['name'] as String?)?.trim() ?? '',
-      code: (data['code'] as String?)?.trim().toUpperCase() ?? normalizedCode,
-      semester: (data['semester'] as String?)?.trim() ?? '',
-      isSuspended: isSuspended,
-    );
+    await batch.commit();
+    return course;
   }
 
+  /// Deletes the course and its enrolments in one batch.
   @override
-  Future<void> deleteCourse({required String code}) async {
-    final normalizedCode = code.trim().toUpperCase();
+  Future<void> deleteCourse(String id) async {
+    final batch = _firestore.batch()..delete(_courses.doc(id));
+    for (final enrolment in await _enrolmentsOf(id)) {
+      batch.delete(enrolment.reference);
+    }
+    await batch.commit();
+  }
+
+  Future<void> _checkCodeIsFree(String code, {String? exceptId}) async {
     final snapshot = await _courses
-        .where('code', isEqualTo: normalizedCode)
-        .limit(1)
+        .where('code', isEqualTo: code)
+        .limit(2)
         .get();
-    if (snapshot.docs.isEmpty) return;
-    await snapshot.docs.single.reference.delete();
+    if (snapshot.docs.any((document) => document.id != exceptId)) {
+      throw CourseCodeTakenException(code);
+    }
+  }
+
+  Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>> _enrolmentsOf(
+    String courseId,
+  ) async {
+    final snapshot = await _firestore
+        .collection(enrolments)
+        .where('courseId', isEqualTo: courseId)
+        .get();
+    return snapshot.docs;
   }
 }

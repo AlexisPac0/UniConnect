@@ -12,6 +12,14 @@ import 'package:uniconnect/features/auth/domain/usecases/sign_out.dart';
 import 'package:uniconnect/features/auth/domain/usecases/watch_auth_state.dart';
 import 'package:uniconnect/features/auth/presentation/cubit/login_cubit.dart';
 import 'package:uniconnect/features/auth/presentation/cubit/sign_out_cubit.dart';
+import 'package:uniconnect/features/courses/data/datasources/course_data_source.dart';
+import 'package:uniconnect/features/courses/data/repositories/course_repository_impl.dart';
+import 'package:uniconnect/features/courses/domain/repositories/course_repository.dart';
+import 'package:uniconnect/features/courses/domain/usecases/create_course.dart';
+import 'package:uniconnect/features/courses/domain/usecases/delete_course.dart';
+import 'package:uniconnect/features/courses/domain/usecases/get_courses.dart';
+import 'package:uniconnect/features/courses/domain/usecases/update_course.dart';
+import 'package:uniconnect/features/courses/presentation/cubit/courses_cubit.dart';
 import 'package:uniconnect/features/home/data/datasources/home_data_source.dart';
 import 'package:uniconnect/features/home/data/repositories/home_repository_impl.dart';
 import 'package:uniconnect/features/home/domain/repositories/home_repository.dart';
@@ -40,6 +48,7 @@ void configureDependencies() {
   _registerAuthFeature();
   _registerHomeFeature();
   _registerProfileFeature();
+  _registerCoursesFeature();
 }
 
 void _registerCore() {
@@ -91,5 +100,27 @@ void _registerProfileFeature() {
         session: getIt(),
       ),
       dispose: (controller) => controller.dispose(),
+    );
+}
+
+void _registerCoursesFeature() {
+  getIt
+    ..registerLazySingleton<CourseDataSource>(
+      () => FirestoreCourseDataSource(FirebaseFirestore.instance),
+    )
+    ..registerLazySingleton<CourseRepository>(
+      () => CourseRepositoryImpl(getIt()),
+    )
+    ..registerLazySingleton(() => GetCourses(getIt()))
+    ..registerLazySingleton(() => CreateCourse(getIt()))
+    ..registerLazySingleton(() => UpdateCourse(getIt()))
+    ..registerLazySingleton(() => DeleteCourse(getIt()))
+    ..registerFactory(
+      () => CoursesCubit(
+        getCourses: getIt(),
+        createCourse: getIt(),
+        updateCourse: getIt(),
+        deleteCourse: getIt(),
+      ),
     );
 }
