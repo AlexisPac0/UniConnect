@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:uniconnect/core/theme/theme.dart';
 import 'package:uniconnect/core/widgets/widgets.dart';
+import 'package:uniconnect/features/courses/domain/entities/semester.dart';
 import 'package:uniconnect/features/courses/domain/usecases/create_course.dart';
 import 'package:uniconnect/features/courses/presentation/cubit/courses_cubit.dart';
 import 'package:uniconnect/features/courses/presentation/pages/courses_page.dart';
@@ -86,10 +87,6 @@ void main() {
         find.widgetWithText(TextFormField, 'Code'),
         'db101',
       );
-      await tester.enterText(
-        find.widgetWithText(TextFormField, 'Semester'),
-        '2026-SPRING',
-      );
     }
 
     testWidgets('empty fields are required', (tester) async {
@@ -98,7 +95,8 @@ void main() {
       await tester.tap(find.widgetWithText(AppButton, 'Create'));
       await tester.pump();
 
-      expect(find.text('Required'), findsNWidgets(3));
+      // The semester is preselected: only the name and code are missing.
+      expect(find.text('Required'), findsNWidgets(2));
       verifyNever(() => cubit.create(any()));
     });
 
@@ -115,7 +113,7 @@ void main() {
               as CourseParams;
       expect(
         (values.name, values.code, values.semester),
-        ('Databases', 'db101', '2026-SPRING'),
+        ('Databases', 'db101', Semesters.current(DateTime.now())),
       );
       expect(find.text('New course'), findsNothing);
     });

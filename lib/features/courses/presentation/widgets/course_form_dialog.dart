@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:uniconnect/core/theme/theme.dart';
 import 'package:uniconnect/core/widgets/widgets.dart';
 import 'package:uniconnect/features/courses/domain/entities/course.dart';
+import 'package:uniconnect/features/courses/domain/entities/semester.dart';
 import 'package:uniconnect/features/courses/domain/usecases/create_course.dart';
 
 /// Saves the [CourseParams] typed in a [CourseFormDialog]; returns the error
@@ -15,19 +16,29 @@ Future<void> showCourseFormDialog(
   BuildContext context, {
   Course? course,
   required CourseFormSubmit onSubmit,
+  DateTime? today,
 }) {
   return showDialog<void>(
     context: context,
-    builder: (_) => CourseFormDialog(course: course, onSubmit: onSubmit),
+    builder: (_) =>
+        CourseFormDialog(course: course, onSubmit: onSubmit, today: today),
   );
 }
 
 class CourseFormDialog extends StatefulWidget {
-  const CourseFormDialog({super.key, this.course, required this.onSubmit});
+  const CourseFormDialog({
+    super.key,
+    this.course,
+    required this.onSubmit,
+    this.today,
+  });
 
   /// Course to edit, `null` to create one.
   final Course? course;
   final CourseFormSubmit onSubmit;
+
+  /// Date that decides the semesters offered; `DateTime.now()` by default.
+  final DateTime? today;
 
   @override
   State<CourseFormDialog> createState() => _CourseFormDialogState();
@@ -37,7 +48,11 @@ class _CourseFormDialogState extends State<CourseFormDialog> {
   final _formKey = GlobalKey<FormState>();
   late final _name = TextEditingController(text: widget.course?.name);
   late final _code = TextEditingController(text: widget.course?.code);
-  late final _semester = TextEditingController(text: widget.course?.semester);
+  late final String _currentSemester = Semesters.current(_today);
+  late final DateTime _today = widget.today ?? DateTime.now();
+
+  /// A new course starts in the current semester.
+  late String? _semester = widget.course?.semester ?? _currentSemester;
   bool _isSaving = false;
   String? _error;
 
@@ -45,7 +60,6 @@ class _CourseFormDialogState extends State<CourseFormDialog> {
   void dispose() {
     _name.dispose();
     _code.dispose();
-    _semester.dispose();
     super.dispose();
   }
 
@@ -59,7 +73,7 @@ class _CourseFormDialogState extends State<CourseFormDialog> {
       CourseParams(
         name: _name.text,
         code: _code.text,
-        semester: _semester.text,
+        semester: _semester ?? '',
       ),
     );
     if (!mounted) return;
@@ -92,7 +106,7 @@ class _CourseFormDialogState extends State<CourseFormDialog> {
               const SizedBox(height: AppSpacing.md),
               _field(_code, 'Code', 'CS302'),
               const SizedBox(height: AppSpacing.md),
-              _field(_semester, 'Semester', '2026-FALL', isLast: true),
+              _semesterField(),
               if (_error case final error?) ...[
                 const SizedBox(height: AppSpacing.md),
                 Text(
@@ -121,12 +135,7 @@ class _CourseFormDialogState extends State<CourseFormDialog> {
     );
   }
 
-  Widget _field(
-    TextEditingController controller,
-    String label,
-    String hint, {
-    bool isLast = false,
-  }) {
+  Widget _field(TextEditingController controller, String label, String hint) {
     return TextFormField(
       controller: controller,
       enabled: !_isSaving,
@@ -134,8 +143,35 @@ class _CourseFormDialogState extends State<CourseFormDialog> {
       textCapitalization: controller == _code
           ? TextCapitalization.characters
           : TextCapitalization.sentences,
-      textInputAction: isLast ? TextInputAction.done : TextInputAction.next,
-      onFieldSubmitted: isLast ? (_) => _submit() : null,
+      textInputAction: TextInputAction.next,
+      validator: _required,
+    );
+  }
+
+  /// The semesters around today, plus the semester of the edited course if
+  /// it is older or was typed in another format.
+  Widget _semesterField() {
+    final semesters = Semesters.around(_today);
+    final edited = widget.course?.semester;
+    final options = [
+      if (edited != null && !semesters.contains(edited)) edited,
+      ...semesters,
+    ];
+    return DropdownButtonFormField<String>(
+      initialValue: _semester,
+      decoration: const InputDecoration(labelText: 'Semester'),
+      items: [
+        for (final semester in options)
+          DropdownMenuItem(
+            value: semester,
+            child: Text(
+              semester == _currentSemester ? '$semester (current)' : semester,
+            ),
+          ),
+      ],
+      onChanged: _isSaving
+          ? null
+          : (value) => setState(() => _semester = value),
       validator: _required,
     );
   }
