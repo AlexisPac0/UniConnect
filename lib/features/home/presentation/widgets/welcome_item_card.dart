@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:uniconnect/core/widgets/app_card.dart';
 import 'package:uniconnect/features/home/domain/entities/welcome_item.dart';
 
 class WelcomeItemCard extends StatelessWidget {
@@ -9,13 +10,15 @@ class WelcomeItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return AppCard(
+      onTap: onTap,
+      // The ListTile brings its own padding.
+      padding: EdgeInsets.zero,
       child: ListTile(
         leading: Icon(_iconFor(item.action)),
         title: Text(item.title),
         subtitle: Text(item.description),
         trailing: onTap == null ? null : const Icon(Icons.chevron_right),
-        onTap: onTap,
       ),
     );
   }

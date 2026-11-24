@@ -12,6 +12,8 @@ class UniConnectApp extends StatelessWidget {
     return MaterialApp.router(
       title: 'UniConnect',
       theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: ThemeMode.system,
       routerConfig: router,
     );
   }

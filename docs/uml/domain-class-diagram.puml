@@ -1,0 +1,283 @@
+@startuml
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+skinparam defaultFontName "Helvetica, Arial, sans-serif"
+skinparam defaultFontSize 11
+
+skinparam package {
+  BackgroundColor #F7F9FC
+  BorderColor #8A97B0
+  FontColor #1A365D
+  FontStyle bold
+}
+
+skinparam class {
+  BackgroundColor #FFFFFF
+  BorderColor #3B5B92
+  FontColor #1A202C
+  HeaderBackgroundColor #EBF3FB
+}
+
+skinparam interface {
+  BackgroundColor #FFFFFF
+  BorderColor #2C5282
+  FontColor #1A365D
+  HeaderBackgroundColor #E2E8F0
+}
+
+skinparam enum {
+  BackgroundColor #FFFFFF
+  BorderColor #4A5568
+  FontColor #2D3748
+  HeaderBackgroundColor #EDF2F7
+}
+
+skinparam ArrowColor #3B5B92
+
+title UniConnect - Domain Layer Class Diagram (Core Business Logic)
+
+package "Core Infrastructure & Patterns" {
+  
+  abstract class "UseCase<Type, Params>" as UseCase<Type, Params> {
+    + Future<Result<Type>> call(Params params)
+  }
+
+  class NoParams {
+  }
+
+  abstract class "Result<T>" as Result<T> <<sealed>> {
+  }
+
+  class "Success<T>" as Success<T> {
+    + T data
+  }
+
+  class "Failure<T>" as Failure<T> {
+    + AppFailure failure
+  }
+
+  abstract class AppFailure {
+    + String message
+    + String? code
+  }
+
+  Result <|-- Success
+  Result <|-- Failure
+  Failure o-- AppFailure
+  UseCase ..> Result : returns
+}
+
+package "Domain Enums & Value Objects" {
+  
+  enum UserRole {
+    student
+    professor
+    admin
+  }
+
+  enum LectureStatus {
+    scheduled
+    rescheduled
+    cancelled
+  }
+
+  enum SessionStatus {
+    open
+    closed
+  }
+
+  enum CheckInMethod {
+    qr
+    manual
+  }
+
+  enum AttendanceStatus {
+    present
+    absent
+    late
+    excused
+  }
+
+  class GeoLocation <<ValueObject>> {
+    + double latitude
+    + double longitude
+    + double? accuracyMeters
+    + double distanceTo(GeoLocation other)
+    + bool isWithinRadius(GeoLocation center, double radiusMeters)
+  }
+
+  class AttendanceStatistics <<ValueObject>> {
+    + String courseId
+    + int totalLectures
+    + int attendedLectures
+    + double attendancePercentage
+    + Map<String, double> perStudentRate
+  }
+}
+
+package "Domain Entities" {
+  
+  class User {
+    + String id
+    + String email
+    + String displayName
+    + UserRole role
+    + String? studentNumber
+    + List<String> fcmTokens
+    + DateTime createdAt
+    + DateTime updatedAt
+    + bool isStudent()
+    + bool isProfessor()
+    + bool isAdmin()
+  }
+
+  class Course {
+    + String id
+    + String code
+    + String name
+    + String semester
+    + List<String> professorIds
+    + int studentCount
+    + DateTime createdAt
+    + DateTime updatedAt
+    + bool isTaughtBy(String professorId)
+  }
+
+  class Enrolment {
+    + String id
+    + String studentId
+    + String courseId
+    + DateTime enrolledAt
+  }
+
+  class Lecture {
+    + String id
+    + String courseId
+    + String professorId
+    + String title
+    + String room
+    + DateTime startTime
+    + DateTime endTime
+    + LectureStatus status
+    + String? cancellationReason
+    + DateTime? rescheduledTo
+    + DateTime updatedAt
+    + Duration get duration
+    + bool get isCancelled
+    + bool get isRescheduled
+    + bool overlapsWith(Lecture other)
+  }
+
+  class AttendanceSession {
+    + String id
+    + String lectureId
+    + String courseId
+    + String professorId
+    + DateTime openedAt
+    + DateTime? closedAt
+    + SessionStatus status
+    + String qrSecretSalt
+    + int qrRotationIntervalSeconds
+    + bool get isOpen
+    + bool isExpired(DateTime now)
+  }
+
+  class AttendanceRecord {
+    + String id
+    + String sessionId
+    + String lectureId
+    + String courseId
+    + String studentId
+    + DateTime timestamp
+    + CheckInMethod checkInMethod
+    + GeoLocation? verifiedLocation
+    + AttendanceStatus status
+    + String? manualOverrideBy
+    + String? manualOverrideReason
+    + DateTime? manualOverrideAt
+    + bool get isManualOverride
+    + bool get isPresent
+  }
+}
+
+package "Repository Interfaces (Domain Contracts)" {
+  
+  interface AuthRepository {
+    + Future<Result<User>> signInWithEmailAndPassword(String email, String password)
+    + Future<Result<void>> signOut()
+    + Future<Result<User?>> getCurrentUser()
+    + Stream<User?> watchAuthState()
+    + Future<Result<void>> registerFcmToken(String token)
+  }
+
+  interface CourseRepository {
+    + Future<Result<List<Course>>> getCourses()
+    + Future<Result<Course>> getCourseById(String courseId)
+    + Future<Result<Course>> createCourse(String code, String name, String semester)
+    + Future<Result<Course>> updateCourse(Course course)
+    + Future<Result<void>> deleteCourse(String courseId)
+    + Future<Result<void>> assignProfessor(String courseId, String professorId)
+    + Future<Result<void>> removeProfessor(String courseId, String professorId)
+    + Future<Result<void>> enrolStudent(String courseId, String studentId)
+    + Future<Result<void>> unenrolStudent(String courseId, String studentId)
+    + Future<Result<List<Course>>> getCoursesForStudent(String studentId)
+    + Future<Result<List<Course>>> getCoursesForProfessor(String professorId)
+  }
+
+  interface TimetableRepository {
+    + Future<Result<List<Lecture>>> getDailyTimetable(String userId, DateTime date)
+    + Future<Result<List<Lecture>>> getWeeklyTimetable(String userId, DateTime weekStart)
+    + Future<Result<Lecture>> scheduleLecture(String courseId, String professorId, String title, String room, DateTime startTime, DateTime endTime)
+    + Future<Result<Lecture>> rescheduleLecture(String lectureId, DateTime newStartTime, DateTime newEndTime, String newRoom)
+    + Future<Result<void>> cancelLecture(String lectureId, String? reason)
+    + Stream<List<Lecture>> watchUpcomingLectures(String userId)
+  }
+
+  interface AttendanceRepository {
+    + Future<Result<AttendanceSession>> openSession(String lectureId)
+    + Future<Result<void>> closeSession(String sessionId)
+    + Future<Result<AttendanceSession?>> getActiveSession(String lectureId)
+    + Stream<AttendanceSession?> watchActiveSession(String lectureId)
+    + Future<Result<AttendanceRecord>> checkInWithQrToken(String sessionId, String qrToken, GeoLocation location)
+    + Future<Result<AttendanceRecord>> manualOverrideAttendance(String recordId, AttendanceStatus status, String reason, String professorId)
+    + Future<Result<List<AttendanceRecord>>> getSessionAttendance(String sessionId)
+    + Stream<List<AttendanceRecord>> watchSessionAttendance(String sessionId)
+    + Future<Result<List<AttendanceRecord>>> getStudentAttendanceHistory(String studentId, String? courseId)
+    + Future<Result<AttendanceStatistics>> getCourseAttendanceStatistics(String courseId)
+  }
+}
+
+' Entity Relationships
+User "1" *-- "1" UserRole : has
+Course "1" o-- "*" User : taught by (professors)
+Course "1" -- "*" Enrolment : enrols
+User "1" -- "*" Enrolment : enrolled as student
+
+Course "1" *-- "*" Lecture : schedules
+User "1" -- "*" Lecture : teaches as professor
+
+Lecture "1" *-- "*" AttendanceSession : has
+AttendanceSession "1" *-- "*" AttendanceRecord : records
+User "1" -- "*" AttendanceRecord : attendee student
+
+Lecture "1" *-- "1" LectureStatus : state
+AttendanceSession "1" *-- "1" SessionStatus : state
+AttendanceRecord "1" *-- "1" CheckInMethod : via
+AttendanceRecord "1" *-- "1" AttendanceStatus : state
+AttendanceRecord "1" o-- "0..1" GeoLocation : checks
+
+' Repository Dependencies
+AuthRepository ..> User : provides
+AuthRepository ..> Result : returns
+CourseRepository ..> Course : manages
+CourseRepository ..> Result : returns
+TimetableRepository ..> Lecture : manages
+TimetableRepository ..> Result : returns
+AttendanceRepository ..> AttendanceSession : manages
+AttendanceRepository ..> AttendanceRecord : manages
+AttendanceRepository ..> AttendanceStatistics : computes
+AttendanceRepository ..> Result : returns
+
+@enduml

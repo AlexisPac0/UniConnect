@@ -57,3 +57,4 @@ service-account*.json
 .env
 .env.*
 latest
+node_modules

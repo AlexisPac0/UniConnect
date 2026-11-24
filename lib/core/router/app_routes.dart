@@ -31,6 +31,9 @@ abstract final class AppRoutes {
 
   static const String settings = '/settings';
 
+  /// Dev-only catalogue of the design system, registered in debug builds.
+  static const String uiGallery = '/dev/ui-gallery';
+
   static const Set<String> homes = {studentHome, professorHome, adminHome};
 
   static String lectureDetailsPath(String lectureId) =>
