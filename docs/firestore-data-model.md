@@ -92,7 +92,6 @@ erDiagram
         string status "open | closed"
         timestamp openedAt
         timestamp closedAt
-        string sessionSecret "Seed for rotating QR token verification"
         number tokenRotationIntervalSeconds "Default: 10"
         map geofence "Target faculty coordinates"
     }
@@ -250,9 +249,18 @@ Created when a professor opens attendance for a specific lecture (UC8, UC9, UC11
 | `status` | `string` | Yes | Enum: `'open'`, `'closed'` |
 | `openedAt` | `timestamp` | Yes | Timestamp when opened |
 | `closedAt` | `timestamp` | No | Timestamp when closed |
-| `sessionSecret` | `string` | Yes | Cryptographic seed used by Cloud Functions / App to generate & verify rotating QR tokens every 10s (UC9) |
 | `tokenRotationIntervalSeconds` | `number` | Yes | Token validity window (default: `10`) |
 | `geofence` | `map` | Yes | Campus coordinates & allowed radius (UC11):<br>`{ latitude: 45.8150, longitude: 15.9819, radiusMeters: 250 }` |
+
+---
+
+**Subdocument `attendance_sessions/{sessionId}/private/secret`** (SCRUM-29):
+enrolled students can read the session document, so the QR seed is kept apart,
+readable only by the course's professors and Cloud Functions.
+
+| Field Name | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `sessionSecret` | `string` | Yes | Cryptographic seed used by Cloud Functions / App to generate & verify rotating QR tokens every 10s (UC9) |
 
 ---
 
@@ -324,6 +332,7 @@ const enrolments = await firestore.collection('enrolments')
 Professor listens to real-time check-ins for the active session:
 ```javascript
 firestore.collection('attendance_records')
+  .where('courseId', '==', courseId) // required by the security rules
   .where('sessionId', '==', currentSessionId)
   .orderBy('checkInTime', 'desc')
   .onSnapshot(...);
@@ -375,6 +384,7 @@ To execute complex queries with equality and range filters simultaneously withou
       "collectionGroup": "attendance_records",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "courseId", "order": "ASCENDING" },
         { "fieldPath": "sessionId", "order": "ASCENDING" },
         { "fieldPath": "checkInTime", "order": "DESCENDING" }
       ]
@@ -405,24 +415,22 @@ To execute complex queries with equality and range filters simultaneously withou
 
 ## 6. Security & Access Control Summary
 
-Security rules enforced via `firestore.rules`:
-1. **`users`**:
-   - Authenticated users can read basic profiles.
-   - Users can only update their own `fcmTokens` and profile details.
-   - Only `admin` role can modify roles.
-2. **`courses`**:
-   - Read: all authenticated users.
-   - Write: only `admin` role.
-3. **`enrolments`**:
-   - Read: students can read their own enrolments; professors and admins can read course enrolments.
-   - Write: only `admin` role.
-4. **`lectures`**:
-   - Read: enrolled students, professors, and admins.
-   - Write: course professors and admins.
-5. **`attendance_sessions`**:
-   - Read: authenticated users.
-   - Write: course professor.
-6. **`attendance_records`**:
-   - Create: students (via Cloud Function or validated rules verifying location & rotating QR token).
-   - Read: student (own records), professor of the course, admin.
-   - Update: professor (manual correction flagging `isManualCorrection = true`).
+Enforced by [`firestore.rules`](../firestore.rules) (SCRUM-29) and tested
+against the emulator with `npm run test:rules`. Everything not listed is
+denied. The role is read from `users/{uid}.role`; Cloud Functions (Admin SDK)
+bypass the rules.
+
+| Collection | Student | Professor | Admin |
+| :--- | :--- | :--- | :--- |
+| `users` | Read own; update own `fcmTokens` only | Read own; update own `fcmTokens` only | Full, except changing own role |
+| `courses` | Read enrolled (by id) | Read taught (`array-contains` query) | Full |
+| `enrolments` | Read own | Read for taught courses | Full (student/course of an enrolment immutable) |
+| `lectures` | Read for enrolled courses | Read/create/update/delete for taught courses | Read |
+| `attendance_sessions` | Read for enrolled courses | Read/create/update/delete for taught courses | Read |
+| `…/private/secret` | — | Read/write for taught courses | — |
+| `attendance_records` | Read own | Read for taught courses; manual create/correction (`isManualCorrection = true`) | Read |
+
+Rules are not filters: queries must carry the constraint that the rules
+check (`courseId` for enrolled/taught courses, `professorId == uid`,
+`studentId == uid`). QR check-ins are created only by the `verifyCheckIn`
+Cloud Function.

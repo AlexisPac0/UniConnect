@@ -149,6 +149,18 @@ new Flutter releases do not unexpectedly change analysis results. Update
 the workflow and README together when upgrading. Continue running both checks locally
 before opening a PR.
 
+The **Firestore rules** workflow tests `firestore.rules` against the Firestore
+emulator. Run it locally with Node.js 20+ and Java 21 (it never deploys and uses
+the offline `demo-uniconnect` project):
+
+```bash
+npm install
+npm run test:rules
+```
+
+Any change to `firestore.rules` needs matching tests in
+`firestore-tests/firestore.rules.test.mjs`.
+
 After saving, verify that the rule targets `main` and that GitHub shows the
 approval requirement on a pull request. SCRUM-17 is not complete until this
 protection is enabled as well as the documentation delivered.
