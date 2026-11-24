@@ -86,6 +86,18 @@ gives `loading`, then `signedIn` with the role of their profile, or
 is invalid. If the user changes while a profile loads, the outdated result is
 ignored. `core` never imports a feature: it only knows `AppSession`.
 
+## Design system
+
+`core/theme` is the single source of truth for the look of the app. Colours
+come from `context.colors` (Material 3 `ColorScheme`) and
+`context.semanticColors` (success, warning, error, info), text styles from
+`context.textStyles`, and spacing, radius and sizes from the `AppSpacing`,
+`AppRadius` and `AppSizes` constants. The app follows the system light/dark
+setting. Screens use the shared widgets of `core/widgets` (`AppButton`,
+`AppCard`, `AppLoader`, `EmptyState`, `ErrorState`) instead of building their
+own. In debug builds, the palette button of the home opens a UI gallery
+showing every token and widget variant in both themes.
+
 ## Project structure
 
 ```
@@ -104,9 +116,20 @@ lib/
 │   │   ├── app_session.dart      # loading / signedOut / signedIn
 │   │   ├── role_access_policy.dart # Features allowed per role
 │   │   └── user_role.dart        # student / professor / admin
-│   ├── theme/app_theme.dart
+│   ├── dev/ui_gallery_page.dart  # Debug-only catalogue of tokens/widgets
+│   ├── theme/                    # Design system (import theme.dart)
+│   │   ├── app_colors.dart       # ColorSchemes + AppSemanticColors
+│   │   ├── app_typography.dart   # Type scale (TextTheme)
+│   │   ├── app_spacing.dart      # Spacing, radius, elevation, sizes
+│   │   ├── app_theme.dart        # Light/dark ThemeData + component themes
+│   │   └── theme_context.dart    # context.colors / textStyles / semanticColors
 │   ├── usecase/usecase.dart      # UseCase<T, Params>, NoParams
-│   └── widgets/
+│   └── widgets/                  # Shared widgets (import widgets.dart)
+│       ├── app_button.dart       # AppButton: variants, sizes, loading
+│       ├── app_card.dart
+│       ├── app_loader.dart       # AppLoader, AppLoadingOverlay, AppSkeleton
+│       ├── empty_state.dart
+│       ├── error_state.dart
 │       ├── placeholder_page.dart
 │       └── splash_page.dart
 └── features/

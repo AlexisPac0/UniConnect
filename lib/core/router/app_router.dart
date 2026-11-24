@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
+import 'package:uniconnect/core/dev/ui_gallery_page.dart';
 import 'package:uniconnect/core/router/app_routes.dart';
 import 'package:uniconnect/core/session/app_session.dart';
 import 'package:uniconnect/core/session/role_access_policy.dart';
@@ -77,6 +79,11 @@ GoRouter createAppRouter(AppSession session) {
         path: AppRoutes.settings,
         builder: (_, _) => const PlaceholderPage(title: 'Settings'),
       ),
+      if (kDebugMode)
+        GoRoute(
+          path: AppRoutes.uiGallery,
+          builder: (_, _) => const UiGalleryPage(),
+        ),
     ],
   );
 }
