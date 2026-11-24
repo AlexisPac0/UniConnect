@@ -86,6 +86,25 @@ gives `loading`, then `signedIn` with the role of their profile, or
 is invalid. If the user changes while a profile loads, the outdated result is
 ignored. `core` never imports a feature: it only knows `AppSession`.
 
+The three ways a session starts or ends:
+
+- **Restored at startup.** Firebase Auth keeps the user signed in on the
+  device and `authStateChanges()` emits them as its first event. The app
+  opens on `/splash` (`loading`), loads the profile, then goes to the home of
+  the role. Nothing else is needed: it is the same path as a new sign-in.
+- **Log out.** The `SignOutButton` (in the home `AppBar`) asks for a
+  confirmation, then calls `SignOutCubit` → `SignOut` →
+  `FirebaseAuth.signOut()`. It never navigates: Firebase Auth emits `null`,
+  `SessionController` sets `signedOut`, and the router redirects to `/login`.
+  If signing out fails, a `SnackBar` shows the message and the user stays
+  signed in.
+- **Forced sign-out.** When the profile cannot be loaded (missing document,
+  invalid role...), `SessionController` sets `signedOut` with the failure
+  message, then calls `SignOut` so that the user does not stay signed in to
+  Firebase without being able to use the app. The `null` that Firebase emits
+  next keeps the message, so the login screen can display it. If `SignOut`
+  fails, the session stays `signedOut` and it is not retried.
+
 ## Project structure
 
 ```
