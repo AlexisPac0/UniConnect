@@ -68,6 +68,29 @@ If several devices are available, select one with
 The app opens on a splash screen, then the login screen or the home of the
 signed-in user's role.
 
+### Demo accounts
+
+There is no sign-up screen: accounts are created by an administrator.
+`scripts/seed-users.mjs` creates the demo accounts (1 admin, 3 professors,
+6 students, all `@uniconnect.test`) in Firebase Auth with their
+`users/{uid}` profile. It needs a service account key (Firebase console >
+Project settings > Service accounts > Generate new private key), saved as
+`service-account.json` at the repository root; it is ignored by git, never
+commit it.
+
+```bash
+npm ci
+GOOGLE_APPLICATION_CREDENTIALS=./service-account.json \
+SEED_PASSWORD='<shared demo password>' \
+ADMIN_SEED_PASSWORD='<admin password>' \
+npm run seed:users -- --prod
+```
+
+Both passwords need at least 12 characters, and the admin one must be
+different. Never write them in the repository; share them with the team
+privately. Running the script again updates the profiles but not the
+passwords of existing accounts.
+
 ### Checks
 
 Run these from the repository root before opening a pull request:

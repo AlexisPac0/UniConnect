@@ -3,13 +3,17 @@
 //
 // Uses the Admin SDK, which bypasses firestore.rules: this is how the first
 // admin gets created. Safe to run again: existing accounts are reused and
-// their profile is updated.
+// their profile is updated (their password is left unchanged).
+//
+// The admin gets its own password, so that the password shared by the demo
+// professors and students never gives admin access. Running against the real
+// project needs --prod, to avoid seeding it by mistake:
 //
 //   GOOGLE_APPLICATION_CREDENTIALS=./service-account.json \
-//   SEED_PASSWORD='...' npm run seed:users
+//   SEED_PASSWORD='...' ADMIN_SEED_PASSWORD='...' npm run seed:users -- --prod
 //
 // Against the emulators instead, set FIREBASE_AUTH_EMULATOR_HOST and
-// FIRESTORE_EMULATOR_HOST (no credentials needed).
+// FIRESTORE_EMULATOR_HOST (no credentials nor --prod needed).
 
 import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
@@ -17,10 +21,24 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID ?? 'uniconnect-910ca';
 const PASSWORD = process.env.SEED_PASSWORD;
+const ADMIN_PASSWORD = process.env.ADMIN_SEED_PASSWORD;
+const MIN_PASSWORD_LENGTH = 12;
 
-if (!PASSWORD || PASSWORD.length < 6) {
-  console.error('Set SEED_PASSWORD (at least 6 characters).');
+function fail(message) {
+  console.error(message);
   process.exit(1);
+}
+
+for (const [name, value] of [
+  ['SEED_PASSWORD', PASSWORD],
+  ['ADMIN_SEED_PASSWORD', ADMIN_PASSWORD],
+]) {
+  if (!value || value.length < MIN_PASSWORD_LENGTH) {
+    fail(`Set ${name} (at least ${MIN_PASSWORD_LENGTH} characters).`);
+  }
+}
+if (ADMIN_PASSWORD === PASSWORD) {
+  fail('ADMIN_SEED_PASSWORD must differ from SEED_PASSWORD.');
 }
 
 const USERS = [
@@ -41,6 +59,13 @@ const USERS = [
 const useEmulators =
   process.env.FIREBASE_AUTH_EMULATOR_HOST && process.env.FIRESTORE_EMULATOR_HOST;
 
+if (!useEmulators && !process.argv.includes('--prod')) {
+  fail(
+    `Refusing to seed the real project ${PROJECT_ID} without --prod ` +
+      '(npm run seed:users -- --prod), or set the emulator hosts.',
+  );
+}
+
 initializeApp(
   useEmulators
     ? { projectId: PROJECT_ID }
@@ -50,7 +75,7 @@ initializeApp(
 const auth = getAuth();
 const db = getFirestore();
 
-async function ensureAuthUser({ email, displayName }) {
+async function ensureAuthUser({ email, displayName, role }) {
   try {
     const existing = await auth.getUserByEmail(email);
     return { uid: existing.uid, created: false };
@@ -59,7 +84,7 @@ async function ensureAuthUser({ email, displayName }) {
     const user = await auth.createUser({
       email,
       displayName,
-      password: PASSWORD,
+      password: role === 'admin' ? ADMIN_PASSWORD : PASSWORD,
       emailVerified: true,
     });
     return { uid: user.uid, created: true };
