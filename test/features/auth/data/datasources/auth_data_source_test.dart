@@ -62,4 +62,12 @@ void main() {
       );
     });
   });
+
+  test('signOut signs out of Firebase Auth', () async {
+    when(() => firebaseAuth.signOut()).thenAnswer((_) async {});
+
+    await dataSource.signOut();
+
+    verify(() => firebaseAuth.signOut()).called(1);
+  });
 }

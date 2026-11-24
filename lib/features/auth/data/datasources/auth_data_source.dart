@@ -12,6 +12,8 @@ abstract interface class AuthDataSource {
   /// Emits the signed-in user, or `null` when nobody is signed in.
   /// The stream may emit errors.
   Stream<AuthUser?> authStateChanges();
+
+  Future<void> signOut();
 }
 
 /// [AuthDataSource] backed by the Firebase Auth SDK.
@@ -42,6 +44,9 @@ class FirebaseAuthDataSource implements AuthDataSource {
       (user) => user == null ? null : _toAuthUser(user),
     );
   }
+
+  @override
+  Future<void> signOut() => _firebaseAuth.signOut();
 
   /// A user signed in without an email (not possible with the providers of
   /// UniConnect) gets an empty one rather than failing.

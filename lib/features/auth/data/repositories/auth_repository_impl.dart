@@ -57,6 +57,21 @@ class AuthRepositoryImpl implements AuthRepository {
     );
   }
 
+  @override
+  Future<Result<void>> signOut() async {
+    try {
+      await _dataSource.signOut();
+      return const Success<void>(null);
+    } catch (error) {
+      return Failure(
+        UnexpectedFailure(
+          message: 'Could not log you out. Please try again.',
+          cause: error,
+        ),
+      );
+    }
+  }
+
   AppFailure _mapFirebaseError(FirebaseAuthException error) {
     return switch (error.code) {
       'invalid-credential' ||

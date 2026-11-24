@@ -8,8 +8,10 @@ import 'package:uniconnect/features/auth/data/datasources/auth_data_source.dart'
 import 'package:uniconnect/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:uniconnect/features/auth/domain/repositories/auth_repository.dart';
 import 'package:uniconnect/features/auth/domain/usecases/sign_in_with_email.dart';
+import 'package:uniconnect/features/auth/domain/usecases/sign_out.dart';
 import 'package:uniconnect/features/auth/domain/usecases/watch_auth_state.dart';
 import 'package:uniconnect/features/auth/presentation/cubit/login_cubit.dart';
+import 'package:uniconnect/features/auth/presentation/cubit/sign_out_cubit.dart';
 import 'package:uniconnect/features/home/data/datasources/home_data_source.dart';
 import 'package:uniconnect/features/home/data/repositories/home_repository_impl.dart';
 import 'package:uniconnect/features/home/domain/repositories/home_repository.dart';
@@ -56,8 +58,10 @@ void _registerAuthFeature() {
     )
     ..registerLazySingleton<AuthRepository>(() => AuthRepositoryImpl(getIt()))
     ..registerLazySingleton(() => SignInWithEmail(getIt()))
+    ..registerLazySingleton(() => SignOut(getIt()))
     ..registerLazySingleton(() => WatchAuthState(getIt()))
-    ..registerFactory(() => LoginCubit(getIt()));
+    ..registerFactory(() => LoginCubit(getIt()))
+    ..registerFactory(() => SignOutCubit(getIt()));
 }
 
 void _registerHomeFeature() {
@@ -83,6 +87,7 @@ void _registerProfileFeature() {
       () => SessionController(
         watchAuthState: getIt(),
         getUserProfile: getIt(),
+        signOut: getIt(),
         session: getIt(),
       ),
       dispose: (controller) => controller.dispose(),

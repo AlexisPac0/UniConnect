@@ -16,4 +16,7 @@ abstract interface class AuthRepository {
   ///
   /// The stream never emits an error: an error is treated as signed out.
   Stream<AuthUser?> authStateChanges();
+
+  /// Signs the current user out. [authStateChanges] then emits `null`.
+  Future<Result<void>> signOut();
 }

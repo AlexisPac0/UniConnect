@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:uniconnect/core/di/injection.dart';
 import 'package:uniconnect/core/router/app_routes.dart';
 import 'package:uniconnect/core/session/user_role.dart';
+import 'package:uniconnect/features/auth/presentation/widgets/sign_out_button.dart';
 import 'package:uniconnect/features/home/domain/entities/welcome_item.dart';
 import 'package:uniconnect/features/home/presentation/cubit/home_cubit.dart';
 import 'package:uniconnect/features/home/presentation/widgets/welcome_item_card.dart';
@@ -41,6 +42,7 @@ class HomeView extends StatelessWidget {
             icon: const Icon(Icons.settings_outlined),
             onPressed: () => context.push(AppRoutes.settings),
           ),
+          const SignOutButton(),
         ],
       ),
       body: BlocBuilder<HomeCubit, HomeState>(
