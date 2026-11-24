@@ -8,6 +8,7 @@ import 'package:uniconnect/core/session/user_role.dart';
 import 'package:uniconnect/core/widgets/placeholder_page.dart';
 import 'package:uniconnect/core/widgets/splash_page.dart';
 import 'package:uniconnect/features/auth/presentation/pages/login_page.dart';
+import 'package:uniconnect/features/courses/presentation/pages/courses_page.dart';
 import 'package:uniconnect/features/home/presentation/pages/home_page.dart';
 
 /// Builds the router of the app.
@@ -65,10 +66,7 @@ GoRouter createAppRouter(AppSession session) {
         path: AppRoutes.myAttendance,
         builder: (_, _) => const PlaceholderPage(title: 'My attendance'),
       ),
-      GoRoute(
-        path: AppRoutes.courses,
-        builder: (_, _) => const PlaceholderPage(title: 'Courses'),
-      ),
+      GoRoute(path: AppRoutes.courses, builder: (_, _) => const CoursesPage()),
       GoRoute(
         path: AppRoutes.courseMembers,
         builder: (_, state) => PlaceholderPage(
