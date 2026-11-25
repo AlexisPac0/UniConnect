@@ -1,0 +1,53 @@
+@startuml
+hide footbox
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+skinparam maxMessageSize 100
+title Lecture change and push notification
+autonumber
+participant "Professor" as U
+participant "Lecture editor / Cubit" as UI
+participant "Lecture change / read use cases" as D
+participant "TimetableRepositoryImpl / Firestore data source" as R
+participant "Cloud Firestore + rules" as F
+participant "Lecture-change Cloud Function" as C
+participant "Firebase Cloud Messaging" as M
+participant "Student device / app" as S
+note over U, S: Preconditions: professor teaches the course; affected students have registered device tokens and enabled notifications.
+U -> UI: Change room / times, or cancel with optional reason
+UI -> D: Submit change; show loading
+D -> D: Validate required room and end after start for reschedule
+alt Invalid input
+D --> UI: Failure; show validation message
+else Valid input
+D -> R: rescheduleLecture(...) or cancelLecture(...)
+R -> F: Update lectures/{id}; enforce assigned-professor access
+alt Permission denied or write fails
+F --> R: Write error
+R --> D: Failure(AppFailure)
+D --> UI: Failure; show error, no notification triggered
+else Write committed
+F --> R: Committed lecture update
+R --> D: Success(Lecture) or Success(void)
+D --> UI: Show saved change (not a delivery receipt)
+group Asynchronous notification after commit
+F -> C: Lecture update event: before / after / event ID
+C -> C: Ignore unchanged room, times and status; deduplicate retries
+C -> F: Query course enrolments and users.fcmTokens
+F --> C: Affected students and registration tokens
+C -> M: Send batched alert with lectureId and event ID
+M --> C: Per-token acceptance or send error
+C -> C: Remove invalid tokens; retry transient failures
+M -> S: Deliver notification when possible
+S -> S: Tap: session guard opens lecture details
+S -> D: Read current lecture through domain use case
+D -> R: Fetch authorized lecture details
+R -> F: Read lectures/{id} under security rules
+F --> R: Current lecture or access / network error
+R --> D: Result
+D --> S: Display current state or error
+end
+end
+end
+note over U, S: Push is best effort; delivery failure never rolls back the lecture. Firestore remains the source of truth.
+@enduml

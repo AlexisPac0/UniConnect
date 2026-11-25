@@ -1,0 +1,56 @@
+@startuml
+hide footbox
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+skinparam maxMessageSize 100
+title Login and role-based navigation
+autonumber
+participant "User" as U
+participant "LoginPage / LoginCubit" as UI
+participant "Auth domain use cases" as D
+participant "AuthRepositoryImpl / FirebaseAuthDataSource" as R
+participant "Firebase Authentication" as A
+participant "SessionController / AppSession / Router" as S
+participant "GetUserProfile / Profile repository + data source" as P
+participant "Cloud Firestore" as F
+note over U, F: Domain use cases depend on repository interfaces; concrete data implementations are injected.
+U -> UI: Submit email and password
+UI -> UI: Emit LoginSubmitting; show loading
+UI -> D: SignInWithEmail(SignInParams)
+alt Empty email or password
+D --> UI: Failure(InvalidCredentialsFailure); show message
+else Nonempty credentials (email is trimmed)
+D -> R: signInWithEmail(email, password)
+R -> A: signInWithEmailAndPassword
+alt Authentication fails
+A --> R: Firebase error (credentials / disabled / network / rate limit)
+R --> D: Failure(AppFailure), no raw exception
+D --> UI: Failure; emit LoginFailure and show message
+else Authentication succeeds
+A --> R: UserCredential
+R --> D: Success(AuthUser)
+D --> UI: Success; emit LoginSuccess (no navigation here)
+end
+end
+group Independent auth-state subscription, established at startup
+A -> R: authStateChanges emits signed-in user
+R -> D: Mapped AuthUser through WatchAuthState
+D -> S: Auth-state event
+S -> S: setLoading; router shows splash
+S -> P: GetUserProfile(user.id) via repository interface
+P -> F: Read users/{uid}
+F --> P: Profile document or read error
+alt Valid profile; this auth event is still current
+P --> S: Success(UserProfile)
+S -> S: setSignedIn with profile role; refresh router
+S -> U: Open student, professor, or admin home
+else Missing / invalid profile or read failure
+P --> S: Failure(AppFailure)
+S -> S: setSignedOut(errorMessage); return to login
+S -> D: SignOut(NoParams)
+D -> R: signOut()
+R -> A: signOut()
+end
+end
+note over U, F: Auth events may arrive before sign-in returns. Stale profile loads are ignored; signed-out events preserve the error message.
+@enduml

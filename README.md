@@ -64,6 +64,8 @@ npm run test:rules   # only if firestore.rules changed
 
 - [Contributing](CONTRIBUTING.md): branches, commits, pull requests, adding a feature.
 - [Architecture](docs/architecture.md): layers, roles, session, tech stack.
+- [Sequence diagrams](docs/uml/sequences/README.md): login, QR attendance,
+  lecture changes and push notifications (SCRUM-21).
 - Specifications: [use cases](docs/specs/use-cases.md),
   [domain model](docs/specs/domain-model.md),
   [components](docs/specs/component-architecture.md),
