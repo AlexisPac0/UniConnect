@@ -1,0 +1,47 @@
+@startuml
+hide footbox
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+skinparam maxMessageSize 100
+title QR attendance check-in
+autonumber
+participant "Student" as U
+participant "Scanner page / AttendanceCubit" as UI
+participant "Camera / location adapter" as H
+participant "CheckInWithQrToken use case" as D
+participant "AttendanceRepositoryImpl / remote data source" as R
+participant "Firebase callable function" as C
+participant "Cloud Firestore" as F
+note over U, F: Precondition: authenticated student; professor opened a session and displays a server-signed rotating QR token.
+U -> UI: Open scanner and scan QR
+UI -> H: Request camera and location permission; explain purpose
+alt Permission denied or location unavailable
+H --> UI: Permission / location failure
+UI -> U: Explain how to retry; do not submit check-in
+else QR scanned and location available
+H --> UI: sessionId, signed token, current coordinates
+UI -> D: Check in; show submitting state
+D -> R: checkInWithQrToken(sessionId, token, location)
+R -> C: Callable request with Firebase Auth context
+C -> C: Require authenticated student; derive uid from auth
+group Server transaction: validation and record creation
+C -> F: Read session, lecture, user, enrolment and existing record
+F --> C: Authoritative state
+C -> C: Check open session, enrolment, signed token + expiry, geofence
+alt Invalid token / closed session / wrong course / outside area
+C --> R: Typed rejection; no attendance write
+else Valid request; record already exists
+C --> R: Return existing record; do not overwrite corrections
+else Valid request; no record exists
+C -> F: Create attendance_records/{sessionId}_{uid}; server timestamp
+F --> C: Transaction committed
+C --> R: Attendance record
+end
+end
+R --> D: Success(AttendanceRecord) or Failure(AppFailure)
+D --> UI: Result; clear submitting state
+UI -> U: Confirm course / lecture, or show actionable error
+end
+note over U, F: Online confirmation required. Network failures are retryable; deterministic record IDs prevent duplicate attendance.
+note over U, F: Signing secrets stay server-side. GPS is client-reported evidence, not proof against location spoofing.
+@enduml
